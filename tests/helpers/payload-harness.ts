@@ -144,12 +144,13 @@ export async function createRedirectIntPayload(
     }
 
     async function destroy() {
-      await resetRedirects()
-      await resetArticles()
-      if (payload.db.destroy) {
-        await payload.db.destroy()
+      try {
+        if (payload.db.destroy) {
+          await payload.db.destroy()
+        }
+      } finally {
+        await dropIsolatedDatabase(baseUrl, isolatedDatabase)
       }
-      await dropIsolatedDatabase(baseUrl, isolatedDatabase)
     }
 
     await resetRedirects()

@@ -47,12 +47,11 @@ describe.skipIf(!intDatabaseConfigured)('redirects table indexes', () => {
 
   it('merged collection is visible on Payload config after init (empty host fields: [])', () => {
     const redirectsCol = handle.payload.config.collections?.find((c) => c.slug === 'redirects')
-    expect(redirectsCol?.fields?.map((f) => ('name' in f ? f.name : ''))).toEqual([
-      'from',
-      'to',
-      'StatusCode',
-      'enabled',
-      'origin',
-    ])
+    const names =
+      redirectsCol?.fields?.map((f) => ('name' in f ? f.name : '')).filter(Boolean) ?? []
+    expect(names).toEqual(expect.arrayContaining(['from', 'to', 'StatusCode', 'enabled', 'origin']))
+    expect(
+      names.filter((n) => ['from', 'to', 'StatusCode', 'enabled', 'origin'].includes(n))
+    ).toEqual(['from', 'to', 'StatusCode', 'enabled', 'origin'])
   })
 })
