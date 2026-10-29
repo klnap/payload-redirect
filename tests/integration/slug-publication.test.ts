@@ -68,6 +68,6 @@ describe.skipIf(!intDatabaseConfigured)('slug publication redirects', () => {
     expect(redirects.totalDocs).toBe(1)
     expect(redirects.docs[0]?.from).toBe('/a')
     expect(redirects.docs[0]?.to).toBe('/b')
-    expect(redirects.docs[0]?.StatusCode).toBe(301)
+    expect(redirects.docs[0]?.StatusCode).toBe('301')
   })
 })

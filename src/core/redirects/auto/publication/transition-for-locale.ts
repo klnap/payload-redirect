@@ -61,7 +61,7 @@ export const transitionForLocale = async ({
     versionFilter: localizeStatus ? { localizeStatus: true, defaultLocale, identifier } : undefined,
   })
 
-  if (localizedField && defaultLocale && locale !== defaultLocale) {
+  if (localizedField && defaultLocale && locale !== defaultLocale && !publishIntent) {
     publishedVersions = publishedVersions.filter((row) => {
       const version = row.version
       if (!version) return false
