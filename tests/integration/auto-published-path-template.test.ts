@@ -152,14 +152,14 @@ describe.skipIf(!intDatabaseConfigured)(
         id: created.id,
         data: { _status: 'published' },
         locale: 'en',
-        query: { publishSpecificLocale: 'en' },
+        req: { query: { publishSpecificLocale: 'en', locale: 'en' } },
       })
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
         data: { _status: 'published' },
         locale: 'pl',
-        query: { publishSpecificLocale: 'pl' },
+        req: { query: { publishSpecificLocale: 'pl', locale: 'pl' } },
       })
 
       const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })
