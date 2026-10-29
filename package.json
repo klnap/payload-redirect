@@ -33,7 +33,7 @@
     "test:run": "bun run test:unit && bun run test:arch && bun run test:security && bun run test:int",
     "test:unit": "bun test tests/unit",
     "test:arch": "bun test tests/architecture",
-    "test:int": "node ./scripts/run-bun-test-dir.mjs tests/integration -- --max-concurrency 1",
+    "test:int": "node ./scripts/with-ephemeral-postgres.mjs -- node ./scripts/run-bun-test-dir.mjs tests/integration -- --max-concurrency 1",
     "test:security": "bun test tests/security",
     "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
     "lint": "biome check .",
