@@ -7,6 +7,7 @@ import {
   resolveCollectionPublishedPathConfig,
 } from '#redirect/core/redirects/auto/published-path'
 import { REDIRECT_CONTEXT_KEYS } from '#redirect/core/redirects/context-keys'
+import { paramKeyFromIdentifierPath } from '#redirect/core/redirects/identifier-field-path'
 import { normalizePathOrUrl } from '#redirect/core/redirects/normalize-path'
 import { getRedirectRuntime } from '#redirect/core/redirects/runtime'
 import { buildPublishedPath } from '#redirect/core/url/published-path'
@@ -36,11 +37,16 @@ export const createRedirect =
     for (const { previous, current, locale } of pairs) {
       const resolvePath = (identifierValue: string): string | null => {
         if (!pathConfig || !locale) return identifierValue
-        const built = buildPublishedPath(
-          pathConfig,
-          identifierValueForPath(options.identifier, identifierValue),
-          locale
-        )
+        const paramKey = paramKeyFromIdentifierPath(options.identifier)
+        const mapping = pathConfig.params?.[paramKey]
+        const data: Record<string, unknown> =
+          mapping &&
+          typeof mapping === 'object' &&
+          'localized' in mapping &&
+          mapping.localized === true
+            ? { [paramKeyFromIdentifierPath(options.identifier)]: { [locale]: identifierValue } }
+            : identifierValueForPath(options.identifier, identifierValue)
+        const built = buildPublishedPath(pathConfig, data, locale)
         return built
       }
 

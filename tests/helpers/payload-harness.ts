@@ -5,7 +5,6 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { BasePayload, buildConfig, type CollectionConfig, type Payload } from 'payload'
 import {
   createIsolatedDatabase,
-  dropIsolatedDatabase,
   intDatabaseConfigured,
   resolveTestDatabaseUrl,
 } from './pg-container'
@@ -97,7 +96,6 @@ export async function createRedirectIntPayload(
   try {
     const isolated = await createIsolatedDatabase(baseUrl)
     const connectionString = isolated.url
-    const isolatedDatabase = isolated.database
 
     const redirectsSlug = options.pluginCollection?.slug ?? 'redirects'
     const usesLocalizedStatus = options.collections?.some((c) => {

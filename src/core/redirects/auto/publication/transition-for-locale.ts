@@ -178,7 +178,7 @@ export const transitionForLocale = async ({
       req,
       collectionSlug: collection.slug,
       docId,
-      versionLocale: useAllLocaleVersions ? undefined : locale,
+      versionLocale: locale,
     })
   }
 

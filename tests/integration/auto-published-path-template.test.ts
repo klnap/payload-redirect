@@ -128,7 +128,7 @@ describe.skipIf(!intDatabaseConfigured)(
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
-        data: { _status: 'published' },
+        data: { _status: { en: 'published', pl: 'published' } },
         ...withPublishAllQuery,
       })
 
@@ -150,7 +150,7 @@ describe.skipIf(!intDatabaseConfigured)(
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
-        data: { _status: 'published' },
+        data: { _status: { en: 'published', pl: 'published' } },
         ...withPublishAllQuery,
       })
 
