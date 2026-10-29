@@ -128,7 +128,7 @@ describe.skipIf(!intDatabaseConfigured)(
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
-        data: { _status: { en: 'published', pl: 'published' } },
+        data: { _status: 'published' },
         ...withPublishAllQuery,
       })
 
@@ -150,8 +150,16 @@ describe.skipIf(!intDatabaseConfigured)(
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
-        data: { _status: { en: 'published', pl: 'published' } },
-        ...withPublishAllQuery,
+        data: { _status: 'published' },
+        locale: 'en',
+        query: { publishSpecificLocale: 'en' },
+      })
+      await handle.payload.update({
+        collection: 'articles',
+        id: created.id,
+        data: { _status: 'published' },
+        locale: 'pl',
+        query: { publishSpecificLocale: 'pl' },
       })
 
       const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })
