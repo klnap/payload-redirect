@@ -1,0 +1,11 @@
+{
+  ".": [
+    "createRedirect",
+    "redirects",
+    "resolveRedirect",
+    "RedirectAmbiguousRuleError",
+    "RedirectConfigError",
+    "RedirectValidationError",
+    "REDIRECT_CONTEXT_KEYS"
+  ]
+}

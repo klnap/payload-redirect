@@ -1,0 +1,74 @@
+{
+  "name": "@klnap/payload-redirect",
+  "version": "0.1.0",
+  "description": "Payload CMS plugin for managed HTTP redirects with validation and resolution helpers",
+  "license": "MIT",
+  "author": "klnap",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/klnap/payload-redirect"
+  },
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#redirect/*": "./src/*"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/exports/index.ts",
+      "default": "./src/exports/index.ts"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node ./scripts/with-ephemeral-postgres.mjs -- bun run test:run",
+    "test:run": "bun run test:unit && bun run test:arch && bun run test:security && bun run test:int",
+    "test:unit": "bun test tests/unit",
+    "test:arch": "bun test tests/architecture",
+    "test:int": "node ./scripts/run-bun-test-dir.mjs tests/integration -- --max-concurrency 1",
+    "test:security": "bun test tests/security",
+    "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
+    "lint": "biome check .",
+    "build": "tsc -p tsconfig.build.json --noEmit",
+    "build:dist": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "prepack": "bun run build:dist",
+    "postpack": "rm -rf dist",
+    "check:exports": "bun run scripts/check-exports.ts"
+  },
+  "peerDependencies": {
+    "payload": "3.90.2"
+  },
+  "devDependencies": {
+    "@payloadcms/db-postgres": "3.90.2",
+    "@payloadcms/richtext-lexical": "3.90.2",
+    "@types/bun": "^1.2.0",
+    "@types/pg": "^8.11.11",
+    "@biomejs/biome": "2.5.14",
+    "dependency-cruiser": "^18.2.0",
+    "payload": "3.90.2",
+    "pg": "^8.13.1",
+    "tsc-alias": "^1.9.7",
+    "typescript": "5.7.3"
+  },
+  "engines": {
+    "node": "^24.0.0",
+    "bun": ">=1.4.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/exports/index.d.ts",
+        "import": "./dist/exports/index.js"
+      }
+    }
+  }
+}
