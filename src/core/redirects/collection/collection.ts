@@ -29,7 +29,7 @@ export const createRedirectsCollection = (
     timestamps: overrides.timestamps ?? true,
     admin: {
       useAsTitle: 'from',
-      defaultColumns: ['from', 'to', 'StatusCode', 'origin', 'enabled', 'updatedAt'],
+      defaultColumns: ['from', 'to', 'statusCode', 'origin', 'enabled', 'updatedAt'],
       listSearchableFields: ['from', 'to'],
       ...overrides.admin,
     },

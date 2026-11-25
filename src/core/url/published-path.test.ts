@@ -1,154 +1,91 @@
 import { describe, expect, it } from 'bun:test'
-import {
-  buildPublishedPath,
-  mergeLocalePrefix,
-  type ResolvedPublishedPathConfig,
-  resolveLocaleRoutePrefix,
-  resolvePathTemplate,
-  resolvePublishedPathConfig,
-} from '#redirect/core/url/published-path'
-
-const projectsParams = {
-  slug: { field: 'slug', localized: true },
-}
-
-describe('mergeLocalePrefix', () => {
-  it('merges with schema winning', () => {
-    expect(mergeLocalePrefix({ en: '', pl: '/pl' }, { de: '/de' })).toEqual({
-      en: '',
-      pl: '/pl',
-      de: '/de',
-    })
-  })
-})
-
-describe('resolveLocaleRoutePrefix', () => {
-  it('uses explicit prefix', () => {
-    expect(resolveLocaleRoutePrefix({ pl: '/pl' }, 'pl')).toBe('/pl')
-    expect(resolveLocaleRoutePrefix({ en: '' }, 'en')).toBe('')
-  })
-
-  it('returns null when map is set but locale missing', () => {
-    expect(resolveLocaleRoutePrefix({ en: '', pl: '/pl' }, 'de')).toBeNull()
-  })
-
-  it('legacy empty map uses locale segment', () => {
-    expect(resolveLocaleRoutePrefix({}, 'pl')).toBe('/pl')
-  })
-})
+import { buildPublishedPath, isValidLocalePrefix } from './published-path'
+import { isValidPathTemplate } from './route-params'
 
 describe('buildPublishedPath', () => {
-  const baseConfig = (
-    overrides?: Partial<ResolvedPublishedPathConfig>
-  ): ResolvedPublishedPathConfig => ({
-    localePrefix: { en: '', pl: '/pl', de: '/de' },
-    path: '/projects/[slug]',
-    paths: {
-      pl: '/projekty/[slug]',
-      de: '/projekte/[slug]',
-    },
-    params: projectsParams,
-    ...overrides,
-  })
-
-  it('composes prefix + localized path + slug', () => {
-    expect(buildPublishedPath(baseConfig(), { slug: 'alfa' }, 'pl')).toBe('/pl/projekty/alfa')
-    expect(buildPublishedPath(baseConfig(), { slug: 'alfa' }, 'en')).toBe('/projects/alfa')
-    expect(buildPublishedPath(baseConfig(), { slug: 'alfa' }, 'de')).toBe('/de/projekte/alfa')
-  })
-
-  it('home path with prefix', () => {
+  it('builds a shared path from multiple fields and encodes each dynamic segment', () => {
     expect(
       buildPublishedPath(
-        {
-          localePrefix: { en: '', pl: '/pl' },
-          path: '/',
-        },
-        {},
-        'pl'
+        { path: '/articles/[category]/[slug]' },
+        { category: 'Science & Tech', slug: 'a/b' },
+        'en'
       )
-    ).toBe('/pl')
+    ).toBe('/articles/Science%20%26%20Tech/a%2Fb')
   })
 
-  it('builds custom paths before applying the configured locale prefix', () => {
+  it('applies explicit locale prefixes to shared and locale-specific templates', () => {
+    const prefixes = { pl: '', en: '/en', de: '/de' }
+    const doc = { slug: 'new' }
+
+    expect(buildPublishedPath({ path: '/[slug]' }, doc, 'en', prefixes)).toBe('/en/new')
+    expect(
+      buildPublishedPath(
+        { paths: { pl: '/realizacje/[slug]', en: '/work/[slug]', de: '/projekte/[slug]' } },
+        doc,
+        'pl',
+        prefixes
+      )
+    ).toBe('/realizacje/new')
+    expect(buildPublishedPath({ path: '/[slug]' }, doc, 'en')).toBe('/new')
+  })
+
+  it('does not prefix custom paths or infer a locale prefix', () => {
     expect(
       buildPublishedPath(
         {
-          localePrefix: { en: '/en' },
           getPath: ({ doc, locale }: { doc: Record<string, unknown>; locale: unknown }) =>
-            locale === 'en' ? `/articles/${String(doc.slug)}` : null,
+            `/${String(doc.slug)}-${String(locale)}`,
         },
-        { slug: 'custom' },
-        'en'
+        { slug: 'new' },
+        'en',
+        { en: '/en' }
       )
-    ).toBe('/en/articles/custom')
+    ).toBe('/new-en')
   })
 
-  it('null when locale missing from prefix map', () => {
+  it('does not fall back when the requested locale has no path value', () => {
     expect(
-      buildPublishedPath(baseConfig({ localePrefix: { en: '', pl: '/pl' } }), { slug: 'x' }, 'de')
+      buildPublishedPath({ path: '/[slug]' }, { slug: { en: 'english' } }, 'pl', {
+        pl: '',
+        en: '/en',
+      })
     ).toBeNull()
+    expect(buildPublishedPath({ paths: { en: '/[slug]' } }, { slug: 'x' }, 'pl')).toBeNull()
   })
 
-  it('falls back to legacy buildPreviewPath when only routes map', () => {
+  it('returns null for missing values and unsafe or invalid callback results', () => {
+    expect(buildPublishedPath({ path: '/articles/[slug]' }, {}, 'en')).toBeNull()
+    expect(buildPublishedPath({ path: '//external/[slug]' }, { slug: 'x' }, 'en')).toBeNull()
+    expect(buildPublishedPath({ getPath: () => '//external/path' }, {}, 'en')).toBeNull()
+    expect(buildPublishedPath({ getPath: () => undefined }, {}, 'en')).toBeNull()
+  })
+
+  it('supports non-localized collections without a locale', () => {
+    expect(buildPublishedPath({ path: '/articles/[slug]' }, { slug: 'x' }, null)).toBe(
+      '/articles/x'
+    )
     expect(
       buildPublishedPath(
         {
-          localePrefix: {},
-          routes: {
-            '/projects/[slug]': {
-              en: '/projects/[slug]',
-              pl: '/projekty/[slug]',
-            },
-          },
-          params: projectsParams,
+          getPath: ({ locale }: { doc: Record<string, unknown>; locale: unknown }) =>
+            locale ? `/${String(locale)}/articles` : '/articles',
         },
-        { slug: 'x' },
-        'pl'
-      )
-    ).toBe('/pl/projekty/x')
-  })
-
-  it('uses path templates and locale-specific route templates', () => {
-    expect(resolvePathTemplate({ paths: { en: '/localized' }, path: '/fallback' }, 'en')).toBe(
-      '/localized'
-    )
-    expect(resolvePathTemplate({ path: '/fallback' }, 'en')).toBe('/fallback')
-    expect(resolvePathTemplate({ routes: { '/route': { en: '/route/[slug]' } } }, 'en')).toBe(
-      '/route/[slug]'
-    )
-    expect(resolvePathTemplate({ routes: { '/route': { fr: '/fr/[slug]' } } }, 'en')).toBeNull()
-    expect(resolvePathTemplate({}, '')).toBeNull()
-    expect(resolvePathTemplate({}, 'en')).toBeNull()
-  })
-
-  it('returns null for missing path templates, locales, or unresolved params', () => {
-    expect(buildPublishedPath({ localePrefix: {}, path: '/[slug]' }, {}, 'en')).toBeNull()
-    expect(buildPublishedPath({ localePrefix: {}, path: '/x' }, {}, null)).toBeNull()
-    expect(
-      buildPublishedPath({ localePrefix: {}, path: '/[slug]', params: projectsParams }, {}, 'en')
-    ).toBeNull()
-    expect(
-      buildPublishedPath({ localePrefix: {}, routes: { '/route': { fr: '/fr/[slug]' } } }, {}, 'en')
-    ).toBeNull()
-    expect(
-      buildPublishedPath(
-        { localePrefix: { en: '' }, routes: { '/route': { fr: '/fr/[slug]' } } },
         {},
-        'en'
+        undefined
       )
-    ).toBeNull()
+    ).toBe('/articles')
   })
+})
 
-  it('resolves a valid schema path and rejects empty configuration', () => {
-    expect(resolvePublishedPathConfig({ en: '/en' }, { path: '/page' })).toEqual({
-      localePrefix: { en: '/en' },
-      path: '/page',
-      paths: undefined,
-      routes: undefined,
-      params: undefined,
-    })
-    expect(resolvePublishedPathConfig(undefined, { routes: {} })).toBeNull()
-    expect(resolvePublishedPathConfig(undefined, undefined)).toBeNull()
+describe('path configuration validation', () => {
+  it('accepts only safe site-relative templates and prefixes', () => {
+    expect(isValidPathTemplate('/articles/[slug]')).toBe(true)
+    expect(isValidPathTemplate('/articles/[slug]/[category]')).toBe(true)
+    expect(isValidPathTemplate('https://example.com/[slug]')).toBe(false)
+    expect(isValidPathTemplate('/articles/[[...slug]]')).toBe(false)
+    expect(isValidPathTemplate('/articles/[bad-name]')).toBe(false)
+    expect(isValidLocalePrefix('')).toBe(true)
+    expect(isValidLocalePrefix('/en')).toBe(true)
+    expect(isValidLocalePrefix('//example.com')).toBe(false)
   })
 })

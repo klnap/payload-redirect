@@ -39,7 +39,7 @@ export type RedirectIntHandle = {
 export type HarnessOptions = {
   collections?: CollectionConfig[]
   pluginCollection?: CollectionConfig
-  localePrefix?: Record<string, string>
+  localePrefixes?: Record<string, string>
   localization?: {
     locales: string[]
     defaultLocale: string
@@ -61,8 +61,8 @@ export const localizedDraftVersions = {
   },
 }
 
-export const withPublishAllQuery = {
-  query: { publishAllLocales: 'true' as const },
+export const withPublishAllLocales = {
+  publishAllLocales: true,
 }
 
 export const withDraftQuery = {
@@ -137,7 +137,7 @@ export async function createRedirectIntPayload(
                 labels: options.pluginCollection.labels,
               }
             : undefined,
-          localePrefix: options.localePrefix,
+          localePrefixes: options.localePrefixes,
         }),
       ],
     })

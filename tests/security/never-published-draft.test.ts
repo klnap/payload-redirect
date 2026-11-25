@@ -24,7 +24,7 @@ describe.skipIf(!intDatabaseConfigured)('never-published draft', () => {
     await handle.resetRedirects()
     await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/draft-only', title: 'D' },
+      data: { slug: 'draft-only', title: 'D' },
       draft: true,
       ...withDraftQuery,
     })

@@ -1,88 +1,81 @@
-import { describe, expect, it, mock, spyOn } from 'bun:test'
-import * as publishedPaths from '#redirect/core/url/published-path'
+import { describe, expect, it, mock } from 'bun:test'
 import { createRedirect } from './create-redirect'
 
-const args = ({
+const makeArgs = ({
   context = {},
   query = { locale: 'en' },
-  collection = { slug: 'pages', versions: { drafts: true }, fields: [{ name: 'slug' }] },
-  doc = { id: 'page-1', slug: 'new', _status: 'published' },
-  data = { _status: 'published' },
+  collection = { slug: 'pages', versions: { drafts: true }, fields: [] },
+  currentDoc = { id: 'page-1', category: 'new-category', slug: 'new', _status: 'published' },
+  locale = 'en',
+  localization = { locales: ['en'], defaultLocale: 'en' },
   versions = [
-    { version: { slug: 'new', _status: 'published' } },
-    { version: { slug: 'old', _status: 'published' } },
+    { version: { category: 'new-category', slug: 'new', _status: 'published' } },
+    { version: { category: 'old-category', slug: 'old', _status: 'published' } },
   ],
   existing = [],
 }: {
   context?: Record<string, unknown>
   query?: Record<string, unknown>
   collection?: Record<string, unknown>
-  doc?: Record<string, unknown>
-  data?: Record<string, unknown>
+  currentDoc?: Record<string, unknown>
+  locale?: string
+  localization?: Record<string, unknown>
   versions?: Record<string, unknown>[]
   existing?: Record<string, unknown>[]
 } = {}) => {
-  const findByID = mock(async () => doc)
+  const findByID = mock(async () => currentDoc)
   const findVersions = mock(async () => ({ docs: versions, hasNextPage: false }))
   const find = mock(async () => ({ docs: existing }))
   const create = mock(async () => ({}))
+  const update = mock(async () => ({}))
   const req = {
     context,
     query,
-    locale: 'en',
+    locale,
     payload: {
-      config: { custom: { payloadRedirect: { collectionSlug: 'redirects' } } },
+      config: { localization },
       findByID,
       findVersions,
       find,
       create,
+      update,
     },
   }
   return {
-    args: { req, collection, doc, data, operation: 'update' } as never,
+    args: { req, collection, doc: currentDoc, data: { _status: 'published' } },
     findByID,
     findVersions,
     find,
     create,
-    doc,
+    update,
+    currentDoc,
   }
 }
 
+const createForPath = (pathOptions: Parameters<typeof createRedirect>[0]['pathOptions']) =>
+  createRedirect({ collectionSlug: 'redirects', pathOptions, localePrefixes: { en: '/en' } })
+
 describe('createRedirect', () => {
-  it('returns immediately when auto redirects are skipped or the collection has no drafts', async () => {
-    const skipped = args({ context: { payloadRedirectSkipAuto: true } })
-    await expect(createRedirect({ identifier: 'slug' })(skipped.args)).resolves.toBe(skipped.doc)
-    expect(skipped.findVersions).not.toHaveBeenCalled()
+  it('skips auto writes when context disables them or the collection has no drafts', async () => {
+    const skipped = makeArgs({ context: { payloadRedirectSkipAuto: true } })
+    await createForPath({ path: '/[slug]' })(skipped.args as never)
+    expect(skipped.findByID).not.toHaveBeenCalled()
 
-    const withoutDrafts = args({ collection: { slug: 'pages', fields: [] } })
-    await expect(createRedirect({ identifier: 'slug' })(withoutDrafts.args)).resolves.toBe(
-      withoutDrafts.doc
-    )
-    expect(withoutDrafts.findVersions).not.toHaveBeenCalled()
+    const noDrafts = makeArgs({ collection: { slug: 'pages', fields: [] } })
+    await createForPath({ path: '/[slug]' })(noDrafts.args as never)
+    expect(noDrafts.findByID).not.toHaveBeenCalled()
   })
 
-  it('returns without querying redirects when no identifier transition exists', async () => {
-    const current = args({ versions: [{ version: { slug: 'new', _status: 'published' } }] })
-    await expect(createRedirect({ identifier: 'slug' })(current.args)).resolves.toBe(current.doc)
-    expect(current.find).not.toHaveBeenCalled()
-  })
-
-  it('creates a normalized redirect for a published identifier change', async () => {
-    const ctx = args()
-    await expect(createRedirect({ identifier: 'slug' })(ctx.args)).resolves.toBe(ctx.doc)
-    expect(ctx.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collection: 'redirects',
-        where: { from: { equals: '/old' } },
-      })
-    )
+  it('compares complete published paths, including multiple changed fields', async () => {
+    const ctx = makeArgs()
+    await createForPath({ path: '/[category]/[slug]' })(ctx.args as never)
     expect(ctx.create).toHaveBeenCalledWith(
       expect.objectContaining({
         collection: 'redirects',
         data: {
-          from: '/old',
-          to: '/new',
-          StatusCode: '301',
+          from: '/en/old-category/old',
+          to: '/en/new-category/new',
+          statusCode: '301',
           enabled: true,
           origin: 'auto',
         },
@@ -90,76 +83,88 @@ describe('createRedirect', () => {
     )
   })
 
-  it('skips transitions when draft saving, skipped by context, or still unpublished', async () => {
-    const draftSave = args({ query: { locale: 'en', draft: 'true' } })
-    await createRedirect({ identifier: 'slug' })(draftSave.args)
-    expect(draftSave.findVersions).not.toHaveBeenCalled()
+  it('skips unchanged paths, first publications, and unpublished documents', async () => {
+    const unchanged = makeArgs({
+      currentDoc: { id: 'p', _status: 'published' },
+      versions: [{ version: { _status: 'published' } }],
+    })
+    await createForPath({ path: '/fixed' })(unchanged.args as never)
+    expect(unchanged.find).not.toHaveBeenCalled()
 
-    const unpublished = args({ doc: { id: 'page-1', slug: 'new', _status: 'draft' } })
-    await createRedirect({ identifier: 'slug' })(unpublished.args)
-    expect(unpublished.find).not.toHaveBeenCalled()
+    const firstPublish = makeArgs({
+      currentDoc: { id: 'p', slug: 'new', _status: 'published' },
+      versions: [{ version: { slug: 'new', _status: 'published' } }],
+    })
+    await createForPath({ path: '/[slug]' })(firstPublish.args as never)
+    expect(firstPublish.find).not.toHaveBeenCalled()
+
+    const unpublished = makeArgs({ currentDoc: { id: 'p', slug: 'new', _status: 'draft' } })
+    await createForPath({ path: '/[slug]' })(unpublished.args as never)
+    expect(unpublished.findByID).toHaveBeenCalledTimes(1)
+    expect(unpublished.findVersions).not.toHaveBeenCalled()
   })
 
-  it('builds localized published paths and skips invalid or identical routes', async () => {
-    const localized = args({
-      collection: {
-        slug: 'pages',
-        versions: { drafts: true },
-        fields: [{ name: 'slug', localized: true }],
-        custom: {
-          redirect: {
-            publishedLink: {
-              path: '/articles/[slug]',
-              params: { slug: { field: 'slug', localized: true } },
-            },
-          },
-        },
-      },
+  it('skips repeated current-path snapshots to find the previous distinct path', async () => {
+    const repeated = makeArgs({
+      currentDoc: { id: 'p', slug: 'same', _status: 'published' },
+      versions: [
+        { version: { slug: 'same', _status: 'published' } },
+        { version: { slug: 'same', _status: 'published' } },
+        { version: { slug: 'older', _status: 'published' } },
+      ],
     })
-    await createRedirect({ identifier: 'slug' })(localized.args)
-    expect(localized.create).toHaveBeenCalledWith(
+    await createForPath({ path: '/[slug]' })(repeated.args as never)
+    expect(repeated.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ from: '/en/articles/old', to: '/en/articles/new' }),
+        data: {
+          from: '/en/older',
+          to: '/en/same',
+          statusCode: '301',
+          enabled: true,
+          origin: 'auto',
+        },
       })
     )
+  })
 
-    const identical = args({
-      collection: {
-        slug: 'pages',
-        versions: { drafts: true },
-        fields: [{ name: 'slug' }],
-        custom: { redirect: { publishedLink: { path: '/fixed' } } },
-      },
-    })
-    await createRedirect({ identifier: 'slug' })(identical.args)
-    expect(identical.find).not.toHaveBeenCalled()
+  it('skips draft saves and unsafe or unresolved previous paths', async () => {
+    const draftSave = makeArgs({ query: { locale: 'en', draft: 'true' } })
+    await createForPath({ path: '/[slug]' })(draftSave.args as never)
+    expect(draftSave.findByID).not.toHaveBeenCalled()
 
-    const invalid = args({
-      collection: {
-        slug: 'pages',
-        versions: { drafts: true },
-        fields: [{ name: 'slug' }],
-        custom: {
-          redirect: {
-            publishedLink: { path: 'http://[invalid', localePrefix: { en: '' } },
-          },
-        },
-      },
+    const unresolved = makeArgs({
+      versions: [
+        { version: { slug: 'new', _status: 'published' } },
+        { version: { _status: 'published' } },
+        { version: { slug: 'older', _status: 'published' } },
+      ],
     })
-    const buildPath = spyOn(publishedPaths, 'buildPublishedPath').mockReturnValue('http://[invalid')
-    await createRedirect({ identifier: 'slug' })(invalid.args)
-    buildPath.mockRestore()
-    expect(invalid.find).not.toHaveBeenCalled()
+    await createForPath({ path: '/[slug]' })(unresolved.args as never)
+    expect(unresolved.find).not.toHaveBeenCalled()
+  })
 
-    const missingParam = args({
-      collection: {
-        slug: 'pages',
-        versions: { drafts: true },
-        fields: [{ name: 'slug' }],
-        custom: { redirect: { publishedLink: { path: '/articles/[missing]' } } },
-      },
+  it('does not replace manual redirects for a previous source path', async () => {
+    const manual = makeArgs({ existing: [{ id: 'r1', origin: 'manual', to: '/manual' }] })
+    await createForPath({ path: '/[slug]' })(manual.args as never)
+    expect(manual.create).not.toHaveBeenCalled()
+    expect(manual.update).not.toHaveBeenCalled()
+  })
+
+  it('uses locale-specific templates and does not fall back across locales', async () => {
+    const localized = makeArgs({
+      locale: 'pl',
+      localization: { locales: ['pl', 'en'], defaultLocale: 'pl' },
+      currentDoc: { id: 'p', slug: 'nowy', _status: { pl: 'published' } },
+      versions: [
+        { version: { slug: { pl: 'nowy' }, _status: { pl: 'published' } } },
+        { version: { slug: { en: 'old' }, _status: { pl: 'published' } } },
+      ],
     })
-    await createRedirect({ identifier: 'slug' })(missingParam.args)
-    expect(missingParam.find).not.toHaveBeenCalled()
+    await createRedirect({
+      collectionSlug: 'redirects',
+      pathOptions: { paths: { pl: '/artykuly/[slug]', en: '/articles/[slug]' } },
+      localePrefixes: { pl: '', en: '/en' },
+    })(localized.args as never)
+    expect(localized.create).not.toHaveBeenCalled()
   })
 })

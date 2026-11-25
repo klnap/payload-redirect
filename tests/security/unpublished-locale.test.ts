@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { createRedirect } from '#redirect/core/redirects/auto/create-redirect'
 import {
   createRedirectIntPayload,
   intDatabaseConfigured,
@@ -18,7 +17,7 @@ describe.skipIf(!intDatabaseConfigured)('unpublished locale', () => {
           slug: 'posts',
           versions: localizedDraftVersions,
           fields: [{ name: 'slug', type: 'text', required: true, localized: true }],
-          hooks: { afterChange: [createRedirect({ identifier: 'slug' })] },
+          custom: { redirect: { paths: { pl: '/[slug]', en: '/[slug]' } } },
         },
       ],
     })
@@ -33,7 +32,7 @@ describe.skipIf(!intDatabaseConfigured)('unpublished locale', () => {
 
     const created = await handle.payload.create({
       collection: 'posts',
-      data: { slug: '/pl-old' },
+      data: { slug: 'pl-old' },
       locale: 'pl',
       draft: true,
     })
@@ -48,7 +47,7 @@ describe.skipIf(!intDatabaseConfigured)('unpublished locale', () => {
     await handle.payload.update({
       collection: 'posts',
       id: created.id,
-      data: { slug: '/en-new' },
+      data: { slug: 'en-new' },
       locale: 'en',
       draft: true,
     })

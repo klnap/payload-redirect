@@ -6,7 +6,7 @@ export const createManualRedirect = async (
   data: {
     from: string
     to?: string
-    StatusCode?: RedirectStatusCode
+    statusCode?: RedirectStatusCode
     enabled?: boolean
   },
   collection = 'redirects'
@@ -14,7 +14,7 @@ export const createManualRedirect = async (
   return payload.create({
     collection,
     data: {
-      StatusCode: 301,
+      statusCode: 301,
       enabled: true,
       ...data,
     },

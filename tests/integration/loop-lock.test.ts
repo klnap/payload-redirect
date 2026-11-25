@@ -45,14 +45,14 @@ describe.skipIf(!intDatabaseConfigured)('redirect rule graph lock (postgres)', (
     try {
       await handle.payload.create({
         collection: 'redirects',
-        data: { from: '/loop-a', to: '/loop-b', StatusCode: 301, enabled: true },
+        data: { from: '/loop-a', to: '/loop-b', statusCode: 301, enabled: true },
         overrideAccess: true,
         req: { transactionID: txA } as never,
       })
 
       const second = handle.payload.create({
         collection: 'redirects',
-        data: { from: '/loop-b', to: '/loop-a', StatusCode: 301, enabled: true },
+        data: { from: '/loop-b', to: '/loop-a', statusCode: 301, enabled: true },
         overrideAccess: true,
         req: { transactionID: txB } as never,
       })
@@ -71,12 +71,12 @@ describe.skipIf(!intDatabaseConfigured)('redirect rule graph lock (postgres)', (
     await handle.resetRedirects()
     const first = await handle.payload.create({
       collection: 'redirects',
-      data: { from: '/update-a', to: '/terminal-a', StatusCode: 301, enabled: true },
+      data: { from: '/update-a', to: '/terminal-a', statusCode: 301, enabled: true },
       overrideAccess: true,
     })
     const second = await handle.payload.create({
       collection: 'redirects',
-      data: { from: '/update-b', to: '/terminal-b', StatusCode: 301, enabled: true },
+      data: { from: '/update-b', to: '/terminal-b', statusCode: 301, enabled: true },
       overrideAccess: true,
     })
     const db = handle.payload.db as unknown as {

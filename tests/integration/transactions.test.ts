@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { createRedirect } from '#redirect/core/redirects/auto/create-redirect'
 import {
   createRedirectIntPayload,
   draftVersions,
@@ -17,9 +16,9 @@ describe.skipIf(!intDatabaseConfigured)('transactions', () => {
           slug: 'fail-publish',
           versions: draftVersions,
           fields: [{ name: 'slug', type: 'text', required: true }],
+          custom: { redirect: { path: '/[slug]' } },
           hooks: {
             afterChange: [
-              createRedirect({ identifier: 'slug' }),
               async (args) => {
                 if (args.operation !== 'update') return args.doc
                 if (args.doc?._status !== 'published') return args.doc
@@ -40,14 +39,14 @@ describe.skipIf(!intDatabaseConfigured)('transactions', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'fail-publish',
-      data: { slug: '/a', _status: 'published' },
+      data: { slug: 'a', _status: 'published' },
     })
 
     await expect(
       handle.payload.update({
         collection: 'fail-publish',
         id: created.id,
-        data: { slug: '/b' },
+        data: { slug: 'b' },
         draft: true,
       })
     ).resolves.toBeDefined()

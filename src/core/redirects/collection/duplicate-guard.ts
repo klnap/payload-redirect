@@ -184,7 +184,7 @@ const normalizeRulePaths = (data: Record<string, unknown>): void => {
   data.to = normalize(data.to, 'to')
 
   try {
-    const statusCode = assertRedirectStatusCode(data.StatusCode ?? DEFAULT_REDIRECT_STATUS_CODE)
+    const statusCode = assertRedirectStatusCode(data.statusCode ?? DEFAULT_REDIRECT_STATUS_CODE)
     validateDestinationForStatus(statusCode, data.to)
   } catch (error) {
     const message =

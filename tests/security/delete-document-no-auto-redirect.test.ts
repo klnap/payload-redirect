@@ -23,7 +23,7 @@ describe.skipIf(!intDatabaseConfigured)('delete document', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/old', title: 'A', _status: 'published' },
+      data: { slug: 'old', title: 'A', _status: 'published' },
     })
 
     await handle.payload.delete({ collection: 'articles', id: created.id, overrideAccess: true })

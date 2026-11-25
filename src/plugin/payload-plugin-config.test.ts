@@ -1,86 +1,167 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 import type { Config } from 'payload'
 import { redirects } from '#redirect/plugin/payload-plugin'
 
-describe('redirects plugin config transform', () => {
-  it('adds its owned redirects collection and registers the runtime slug', () => {
-    const config = redirects()({
-      collections: [{ slug: 'pages', fields: [] }],
-    } as unknown as Config) as Config
+const config = (input: Partial<Config> = {}) =>
+  redirects()({
+    collections: [],
+    ...input,
+  } as unknown as Config as Config) as Config
 
-    expect(config.collections?.map(({ slug }) => slug)).toEqual(['pages', 'redirects'])
-    expect(
-      (config.custom as { payloadRedirect?: { collectionSlug: string; localePrefix?: unknown } })
-        .payloadRedirect
-    ).toEqual({ collectionSlug: 'redirects', localePrefix: undefined })
+describe('redirects plugin config transform', () => {
+  it('registers the owned collection with no automatic-generation setup', () => {
+    const result = config({ collections: [{ slug: 'articles', fields: [] }] })
+    expect(result.collections?.map(({ slug }) => slug)).toEqual(['articles', 'redirects'])
+    expect(result.collections?.[0]?.hooks?.afterChange).toBeUndefined()
   })
 
-  it('wires declarative collections without replacing existing hooks', () => {
+  it('wires collection-local configuration and preserves host hooks', () => {
     const existingHook = () => undefined
-    const config = redirects()({
+    const result = config({
       collections: [
         {
-          slug: 'pages',
+          slug: 'projects',
+          versions: { drafts: true },
           fields: [],
           hooks: { afterChange: [existingHook] },
-          custom: { redirect: { identifier: 'slug' } },
+          custom: { redirect: { paths: { en: '/projects/[slug]' } } },
+        },
+      ],
+      localization: { locales: ['en'], defaultLocale: 'en' },
+    })
+    const project = result.collections?.[0]
+    expect(project?.hooks?.afterChange).toHaveLength(2)
+    expect(project?.hooks?.afterChange?.[0]).toBe(existingHook)
+  })
+
+  it('gives centralized configuration complete precedence over collection-local settings', async () => {
+    const findByID = mock(async () => ({ id: 'p1', slug: 'new', _status: 'published' }))
+    const findVersions = mock(async () => ({
+      docs: [
+        { version: { slug: 'new', _status: 'published' } },
+        { version: { slug: 'old', _status: 'published' } },
+      ],
+      hasNextPage: false,
+    }))
+    const find = mock(async () => ({ docs: [] }))
+    const create = mock(async () => ({}))
+    const result = redirects({
+      collections: { articles: { path: '/central/[slug]' } },
+    })({
+      collections: [
+        {
+          slug: 'articles',
+          versions: { drafts: true },
+          fields: [],
+          custom: { redirect: { paths: { en: '/local/[slug]' } } },
+        },
+      ],
+      localization: { locales: ['en'], defaultLocale: 'en' },
+    } as unknown as Config) as Config
+    const hook = result.collections?.[0]?.hooks?.afterChange?.[0]
+    await hook?.({
+      req: {
+        locale: 'en',
+        query: { locale: 'en' },
+        context: {},
+        payload: { config: result, findByID, findVersions, find, create },
+      },
+      collection: result.collections?.[0],
+      doc: { id: 'p1', slug: 'new', _status: 'published' },
+      data: { _status: 'published' },
+    } as never)
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          from: '/central/old',
+          to: '/central/new',
+          statusCode: '301',
+          enabled: true,
+          origin: 'auto',
+        },
+      })
+    )
+  })
+
+  it('keeps disabled automatic generation separate from manual collection registration', () => {
+    const result = config({
+      collections: [
+        {
+          slug: 'articles',
+          versions: { drafts: true },
+          fields: [],
+          custom: { redirect: { enabled: false } },
+        },
+      ],
+    })
+    expect(result.collections?.[0]?.hooks?.afterChange).toBeUndefined()
+    expect(result.collections?.some(({ slug }) => slug === 'redirects')).toBe(true)
+  })
+
+  it('lets a central disabled entry replace local automatic configuration', () => {
+    const result = redirects({
+      collections: { articles: { enabled: false } },
+    })({
+      collections: [
+        {
+          slug: 'articles',
+          versions: { drafts: true },
+          fields: [],
+          custom: { redirect: { path: '/[slug]' } },
         },
       ],
     } as unknown as Config) as Config
-    const page = config.collections?.[0]
 
-    expect(page?.hooks?.afterChange).toHaveLength(2)
-    expect(page?.hooks?.afterChange?.[0]).toBe(existingHook)
+    expect(result.collections?.[0]?.hooks?.afterChange).toBeUndefined()
   })
 
   it('supports native collection overrides and rejects slug collisions', () => {
-    const config = redirects({
+    const result = redirects({
       overrides: { slug: 'url-rules', labels: { singular: 'URL rule', plural: 'URL rules' } },
     })({ collections: [] } as unknown as Config) as Config
-    expect(config.collections?.[0]?.slug).toBe('url-rules')
+    expect(result.collections?.[0]?.slug).toBe('url-rules')
 
     expect(() =>
       redirects()({ collections: [{ slug: 'redirects', fields: [] }] } as unknown as Config)
     ).toThrow(/already registered/)
   })
 
-  it('merges central path configuration and validates locale maps', () => {
-    const config = redirects({
-      localePrefix: { en: '', pl: '/pl' },
-      collections: {
-        articles: {
-          identifier: 'slug',
-          paths: { en: '/pages/[slug]', pl: '/strony/[slug]' },
-        },
-      } as never,
-    })({
-      localization: { locales: ['en', 'pl'], defaultLocale: 'en' },
-      collections: [
-        {
-          slug: 'articles',
-          fields: [{ name: 'slug', type: 'text' }],
-          custom: { redirect: { identifier: 'slug' } },
-        },
-      ],
-    } as unknown as Config) as Config
-    const redirect = config.collections?.[0]?.custom as {
-      redirect?: { publishedLink?: { paths?: Record<string, string> } }
-    }
-    expect(redirect.redirect?.publishedLink?.paths).toEqual({
-      en: '/pages/[slug]',
-      pl: '/strony/[slug]',
-    })
+  it('validates configured collections, locale maps, path strategies, and versioning', () => {
+    expect(() =>
+      redirects({ collections: { missing: { path: '/[slug]' } } })({
+        collections: [],
+      } as unknown as Config)
+    ).toThrow(/not registered/)
 
     expect(() =>
       redirects({
-        collections: {
-          articles: { identifier: 'slug', paths: { en: '/pages/[slug]' } },
-        } as never,
+        localePrefixes: { en: '', pl: '/pl' },
+        collections: { articles: { paths: { en: '/[slug]' } } },
       })({
         localization: { locales: ['en', 'pl'], defaultLocale: 'en' },
-        collections: [{ slug: 'articles', fields: [] }],
+        collections: [{ slug: 'articles', versions: { drafts: true }, fields: [] }],
       } as unknown as Config)
     ).toThrow(/missing: pl/)
+
+    expect(() =>
+      redirects({ collections: { articles: { path: '/[slug]' } } })({
+        collections: [{ slug: 'articles', fields: [] }],
+      } as unknown as Config)
+    ).toThrow(/require versions\.drafts/)
+  })
+
+  it('rejects incompatible collection options at startup', () => {
+    expect(() =>
+      redirects({
+        collections: {
+          articles: { path: '/[slug]', paths: { en: '/[slug]' } } as never,
+        },
+      })({
+        localization: { locales: ['en'], defaultLocale: 'en' },
+        collections: [{ slug: 'articles', versions: { drafts: true }, fields: [] }],
+      } as unknown as Config)
+    ).toThrow(/exactly one/)
   })
 
   it('rejects duplicate installation', () => {
@@ -88,14 +169,5 @@ describe('redirects plugin config transform', () => {
     expect(() =>
       plugin({ collections: [], plugins: [plugin, redirects()] } as unknown as Config)
     ).toThrow(/only once/)
-  })
-
-  it('does not overwrite the reserved runtime namespace', () => {
-    expect(() =>
-      redirects()({
-        collections: [],
-        custom: { payloadRedirect: { hostValue: true } },
-      } as unknown as Config)
-    ).toThrow(/config\.custom\.payloadRedirect is reserved/)
   })
 })

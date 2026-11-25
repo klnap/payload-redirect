@@ -9,7 +9,7 @@ const autoDoc = {
   id: '1',
   from: '/a',
   to: '/b',
-  StatusCode: 301,
+  statusCode: 301,
   enabled: true,
   origin: 'auto',
 }

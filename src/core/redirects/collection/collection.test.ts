@@ -19,7 +19,7 @@ describe('redirects collection', () => {
     expect(collection.admin?.defaultColumns).toEqual([
       'from',
       'to',
-      'StatusCode',
+      'statusCode',
       'origin',
       'enabled',
       'updatedAt',

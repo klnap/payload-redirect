@@ -2,11 +2,11 @@ import type { CollectionSlug, Payload, PayloadRequest, SelectType, Where } from 
 import type { RedirectStatusCode } from '#redirect/core/redirects/model/status-code'
 
 /** Lookup hooks / idempotent writes (includes `id`). */
-export const redirectLookupSelect = {
+const redirectLookupSelect = {
   id: true,
   from: true,
   to: true,
-  StatusCode: true,
+  statusCode: true,
   enabled: true,
   origin: true,
 } as const
@@ -15,7 +15,7 @@ export type RedirectLookupDoc = {
   id: string | number
   from?: string | null
   to?: string | null
-  StatusCode?: RedirectStatusCode | null
+  statusCode?: RedirectStatusCode | null
   enabled?: boolean | null
   origin?: string | null
 }

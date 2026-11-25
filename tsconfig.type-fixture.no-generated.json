@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.type-fixture.json",
+  "include": ["type-fixture/no-generated-types.ts"]
+}

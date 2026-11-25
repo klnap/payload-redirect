@@ -5,7 +5,7 @@ import {
   draftVersions,
   intDatabaseConfigured,
   type RedirectIntHandle,
-  withPublishAllQuery,
+  withPublishAllLocales,
 } from '../helpers/payload-harness'
 
 const articlesWithPublishedPath: CollectionConfig = {
@@ -15,14 +15,7 @@ const articlesWithPublishedPath: CollectionConfig = {
     { name: 'slug', type: 'text', required: true },
     { name: 'title', type: 'text' },
   ],
-  custom: {
-    redirect: {
-      identifier: 'slug',
-      publishedLink: {
-        path: '/articles/[slug]',
-      },
-    },
-  },
+  custom: { redirect: { path: '/articles/[slug]' } },
 }
 
 const articlesWithCustomPath: CollectionConfig = {
@@ -34,11 +27,8 @@ const articlesWithCustomPath: CollectionConfig = {
   ],
   custom: {
     redirect: {
-      identifier: 'slug',
-      publishedLink: {
-        getPath: ({ doc }: { doc: Record<string, unknown> }) =>
-          `/articles/${String(doc.category)}/${String(doc.slug)}`,
-      },
+      getPath: ({ doc }: { doc: Record<string, unknown>; locale: string | null }) =>
+        `/articles/${String(doc.category)}/${String(doc.slug)}`,
     },
   },
 }
@@ -48,7 +38,6 @@ describe.skipIf(!intDatabaseConfigured)('auto redirects with published path temp
 
   beforeAll(async () => {
     handle = await createRedirectIntPayload({
-      localePrefix: { en: '' },
       collections: [articlesWithPublishedPath, articlesWithCustomPath],
     })
   }, 120_000)
@@ -57,7 +46,7 @@ describe.skipIf(!intDatabaseConfigured)('auto redirects with published path temp
     await handle.destroy()
   })
 
-  it('creates redirect from built paths when identifier changes on publish', async () => {
+  it('creates a redirect when the published path changes', async () => {
     await handle.resetArticles()
     await handle.resetRedirects()
 
@@ -129,18 +118,14 @@ describe.skipIf(!intDatabaseConfigured)(
       ],
       custom: {
         redirect: {
-          identifier: 'slug',
-          publishedLink: {
-            path: '/articles/[slug]',
-            paths: { pl: '/artykuly/[slug]' },
-          },
+          paths: { en: '/articles/[slug]', pl: '/artykuly/[slug]' },
         },
       },
     }
 
     beforeAll(async () => {
       handle = await createRedirectIntPayload({
-        localePrefix: { en: '', pl: '/pl' },
+        localePrefixes: { en: '', pl: '/pl' },
         localization: { locales: ['en', 'pl'], defaultLocale: 'en', fallback: true },
         collections: [localizedArticles],
       })
@@ -173,7 +158,7 @@ describe.skipIf(!intDatabaseConfigured)(
         collection: 'articles',
         id: created.id,
         data: { _status: 'published' },
-        ...withPublishAllQuery,
+        ...withPublishAllLocales,
       })
 
       await handle.payload.update({
@@ -196,14 +181,14 @@ describe.skipIf(!intDatabaseConfigured)(
         id: created.id,
         data: { _status: 'published' },
         locale: 'en',
-        req: { query: { publishSpecificLocale: 'en', locale: 'en' } },
+        publishSpecificLocale: 'en',
       })
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
         data: { _status: 'published' },
         locale: 'pl',
-        req: { query: { publishSpecificLocale: 'pl', locale: 'pl' } },
+        publishSpecificLocale: 'pl',
       })
 
       const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })

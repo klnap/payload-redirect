@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { effectiveRuleData } from '#redirect/core/redirects/collection/duplicate-guard'
 
 describe('effectiveRuleData', () => {
-  const stored = { id: 'r1', from: '/a', to: '/b', enabled: false, StatusCode: 301 }
+  const stored = { id: 'r1', from: '/a', to: '/b', enabled: false, statusCode: 301 }
 
   test('create uses the incoming data unchanged', () => {
     const data = { from: '/x', to: '/y' }

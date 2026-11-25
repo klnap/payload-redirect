@@ -1,68 +1,41 @@
 import type { CollectionAfterChangeHook } from 'payload'
 import { REDIRECT_CONTEXT_KEYS } from '#redirect/core/redirects/context-keys'
-import type { GetPublicationTransitionOptions, PublicationTransition } from '../types.js'
-import {
-  getRequestLocales,
-  hasLocalizedDraftStatus,
-  isIdentifierLocalized,
-  listLocales,
-} from './locales.js'
-import { isDraftSave, isPublishIntent, isUnpublishedStatus } from './publish-intent.js'
-import { transitionForLocale } from './transition-for-locale.js'
+import type { PublicationTransition } from '../types.js'
+import { getRequestLocales, hasLocalizedDraftStatus, resolveDefaultLocale } from './locales.js'
+import { isDraftSave, isLocalePublished } from './publish-intent.js'
+import { fetchLocalePublishedDoc } from './versions/document-locale.js'
+import { fetchPublishedVersionPages } from './versions/version-pages.js'
 
 export const getPublicationTransition = async (
-  args: Parameters<CollectionAfterChangeHook>[0],
-  options: GetPublicationTransitionOptions
+  args: Parameters<CollectionAfterChangeHook>[0]
 ): Promise<PublicationTransition[]> => {
-  const { req, doc, collection, data } = args
-  const publishIntent = isPublishIntent(data)
-
+  const { req, doc, collection } = args
   if (!collection.versions?.drafts) return []
-  if (isDraftSave(req)) return []
-  if (req.context?.[REDIRECT_CONTEXT_KEYS.skipAuto]) return []
+  if (isDraftSave(req) || req.context?.[REDIRECT_CONTEXT_KEYS.skipAuto]) return []
 
-  const docRecord = doc as Record<string, unknown>
-  if (isUnpublishedStatus(docRecord._status) && !hasLocalizedDraftStatus(collection)) {
-    return []
-  }
-
-  let locales = getRequestLocales(req)
-  const localizedField = isIdentifierLocalized(collection, options.identifier)
   const docId = doc.id
-
-  const publishAllLocales =
-    req.query?.publishAllLocales === 'true' || req.query?.publishAllLocales === true
-
-  if (locales.length === 0 && publishAllLocales) {
-    locales = listLocales(req)
-  }
-
-  if (
-    locales.length === 0 &&
-    localizedField &&
-    hasLocalizedDraftStatus(collection) &&
-    docRecord._status &&
-    typeof docRecord._status === 'object'
-  ) {
-    locales = Object.entries(docRecord._status as Record<string, unknown>)
-      .filter(([, value]) => value === 'published')
-      .map(([code]) => code)
-  }
-
+  const locales = getRequestLocales(req, (doc as Record<string, unknown>)._status)
+  const localizeStatus = hasLocalizedDraftStatus(collection)
+  const defaultLocale = resolveDefaultLocale(req)
   const transitions: PublicationTransition[] = []
 
   for (const locale of locales) {
-    const t = await transitionForLocale({
-      req,
-      collection,
-      docId,
-      locale,
-      identifier: options.identifier,
-      localizedField,
-      hookDoc: docRecord,
-      publishIntent,
-    })
-    transitions.push(t)
+    const currentDoc = await fetchLocalePublishedDoc({ req, collection, docId, locale })
+    if (!currentDoc || !isLocalePublished(currentDoc._status, locale ?? '')) continue
+
+    const publishedDocs = (
+      await fetchPublishedVersionPages({
+        req,
+        collectionSlug: collection.slug,
+        docId,
+        locale,
+        versionFilter: { localizeStatus, defaultLocale },
+      })
+    )
+      .map((row) => row.version)
+      .filter((version): version is Record<string, unknown> => Boolean(version))
+
+    transitions.push({ locale, currentDoc, publishedDocs })
   }
 
   return transitions

@@ -1,7 +1,7 @@
 {
   "name": "@klnap/payload-redirect",
-  "version": "0.2.0",
-  "description": "Payload plugin for manual and publication-generated redirects",
+  "version": "0.3.0",
+  "description": "Redirect management for Payload CMS.",
   "homepage": "https://github.com/klnap/payload-redirect#readme",
   "bugs": {
     "url": "https://github.com/klnap/payload-redirect/issues"
@@ -10,33 +10,35 @@
     "payload",
     "payloadcms",
     "payload-plugin",
+    "cms",
+    "redirect",
     "redirects",
-    "nextjs"
+    "redirect-management"
   ],
   "license": "MIT",
   "author": "klnap",
   "repository": {
     "type": "git",
-    "url": "https://github.com/klnap/payload-redirect"
+    "url": "git+https://github.com/klnap/payload-redirect.git"
   },
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/exports/index.d.ts",
-      "import": "./dist/exports/index.js",
-      "default": "./dist/exports/index.js"
+      "import": "./dist/exports/index.js"
     }
   },
   "files": [
     "dist",
     "README.md",
     "LICENSE",
-    "docs"
+    "docs/FAILURE_SEMANTICS.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "typecheck:consumer": "bun run build && tsc -p tsconfig.type-fixture.json",
+    "typecheck:consumer": "bun run build && tsc -p tsconfig.type-fixture.json && tsc -p tsconfig.type-fixture.no-generated.json",
     "test": "bun test src tests/unit",
     "test:int": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/integration tests/security --max-concurrency 1 --timeout=15000",
     "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
@@ -81,6 +83,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./dist/exports/index.js",
   "types": "./dist/exports/index.d.ts"
 }

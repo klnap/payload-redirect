@@ -23,7 +23,7 @@ describe.skipIf(!intDatabaseConfigured)('false publication', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/same', title: 'A', _status: 'published' },
+      data: { slug: 'same', title: 'A', _status: 'published' },
     })
 
     await handle.payload.update({

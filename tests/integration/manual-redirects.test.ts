@@ -18,10 +18,10 @@ describe.skipIf(!intDatabaseConfigured)('manual redirects', () => {
     const handle = await createRedirectIntPayload()
     try {
       const from = '/old?return=https://example.test/a'
-      await createManualRedirect(handle.payload, { from, to: '/new', StatusCode: 301 })
+      await createManualRedirect(handle.payload, { from, to: '/new', statusCode: 301 })
       expect(await findRule(handle.payload, from)).toMatchObject({
         from,
-        StatusCode: '301',
+        statusCode: '301',
         to: '/new',
       })
       expect(await findRule(handle.payload, '/old?return=https:/example.test/a')).toBeUndefined()
@@ -33,12 +33,12 @@ describe.skipIf(!intDatabaseConfigured)('manual redirects', () => {
   it('resolves 301/302 and ignores disabled', async () => {
     const handle = await createRedirectIntPayload()
     try {
-      await createManualRedirect(handle.payload, { from: '/perm', to: '/target', StatusCode: 301 })
-      await createManualRedirect(handle.payload, { from: '/temp', to: '/other', StatusCode: 302 })
+      await createManualRedirect(handle.payload, { from: '/perm', to: '/target', statusCode: 301 })
+      await createManualRedirect(handle.payload, { from: '/temp', to: '/other', statusCode: 302 })
       await createManualRedirect(handle.payload, {
         from: '/off',
         to: '/nope',
-        StatusCode: 301,
+        statusCode: 301,
         enabled: false,
       })
 

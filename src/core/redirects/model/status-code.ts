@@ -18,7 +18,7 @@ export const isRedirectStatusCode = (value: unknown): value is RedirectStatusCod
 export const assertRedirectStatusCode = (value: unknown): RedirectStatusCode => {
   const code = normalizeStatusCode(value)
   if (code === undefined) {
-    throw new RedirectValidationError(`StatusCode must be one of ${SUPPORTED.join(', ')}`)
+    throw new RedirectValidationError(`statusCode must be one of ${SUPPORTED.join(', ')}`)
   }
   return code
 }

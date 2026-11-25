@@ -1,6 +1,11 @@
 {
   ".": {
     "runtime": ["redirects"],
-    "types": ["RedirectOrigin", "RedirectsOptions", "RedirectStatusCode"]
+    "types": [
+      "RedirectCollectionOptions",
+      "RedirectOrigin",
+      "RedirectsOptions",
+      "RedirectStatusCode"
+    ]
   }
 }

@@ -10,7 +10,7 @@ export const isIdenticalAutoRule = (
 ): boolean =>
   doc.from === rule.from &&
   doc.to === rule.to &&
-  assertRedirectStatusCode(doc.StatusCode ?? DEFAULT_REDIRECT_STATUS_CODE) ===
+  assertRedirectStatusCode(doc.statusCode ?? DEFAULT_REDIRECT_STATUS_CODE) ===
     DEFAULT_REDIRECT_STATUS_CODE &&
   doc.enabled !== false &&
   doc.origin === 'auto'

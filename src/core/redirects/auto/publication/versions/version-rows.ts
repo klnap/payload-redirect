@@ -10,53 +10,21 @@ export type VersionRow = {
 
 export const isPublishedVersionRow = (
   row: VersionRow,
-  locale: string,
-  options?: { localizeStatus?: boolean; defaultLocale?: string; identifier?: string }
+  locale: string | undefined,
+  options?: { localizeStatus?: boolean; defaultLocale?: string }
 ): boolean => {
   if (row.snapshot || row.autosave) return false
 
   const publishedLocale = row.publishedLocale ?? row.published_locale
-  if (publishedLocale) {
-    return publishedLocale === locale
-  }
+  if (publishedLocale) return publishedLocale === locale
 
   const status = row.version?._status
   if (status === 'draft') return false
-
-  if (options?.localizeStatus && options.identifier) {
-    const field = row.version?.[options.identifier]
-    if (typeof field === 'string') {
-      if (typeof status === 'object' && status !== null) {
-        return (status as Record<string, unknown>)[locale] === 'published'
-      }
-      return status === 'published'
-    }
-    if (field && typeof field === 'object' && !Array.isArray(field)) {
-      if (!(locale in field)) return false
-      if (typeof status === 'object' && status !== null) {
-        return (status as Record<string, unknown>)[locale] === 'published'
-      }
-      if (status === 'published') return true
-      return false
-    }
+  if (status && typeof status === 'object' && !Array.isArray(status)) {
+    return locale !== undefined && (status as Record<string, unknown>)[locale] === 'published'
   }
-
-  if (status && typeof status === 'object') {
-    return (status as Record<string, unknown>)[locale] === 'published'
-  }
-
   if (status === 'published') {
-    if (options?.localizeStatus && options.defaultLocale) {
-      return locale === options.defaultLocale
-    }
-    return true
+    return !options?.localizeStatus || locale !== undefined
   }
-
   return false
 }
-
-export const pickPublishedVersions = (
-  rows: VersionRow[],
-  locale: string,
-  options?: { localizeStatus?: boolean; defaultLocale?: string; identifier?: string }
-): VersionRow[] => rows.filter((row) => isPublishedVersionRow(row, locale, options))
