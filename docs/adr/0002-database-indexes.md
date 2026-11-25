@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Hooks and `resolveRedirect` look up by normalized `from`. At most one row per `from` is a domain invariant.
+Hooks look up by normalized `from`. At most one row per `from` is a domain invariant.
 
 ## Schema (Payload field flags)
 
@@ -17,7 +17,7 @@ Hooks and `resolveRedirect` look up by normalized `from`. At most one row per `f
 
 Collection defaults: `versions: false`, `defaultSort: 'from'`, `timestamps: true`.
 
-Custom host collections must keep compatible `from` / `enabled` flags (`validateRedirectsCollectionConfig`).
+The plugin owns this collection and enforces compatible `from` / `enabled` flags.
 
 ## Postgres (host migration, optional but recommended)
 
@@ -35,11 +35,10 @@ See host database performance docs when adding indexes for large redirect tables
 
 | Path | DB round-trips | Notes |
 | :--- | :--- | :--- |
-| `resolveRedirect` | 1 | `find` by `from`, internal select (from/to/StatusCode/enabled), `depth: 0` |
 | `ensureAutoRedirect` | 1 or 2 | Single `find` by `from`; create if absent |
 | Duplicate guard | 1 per save | `beforeChange`; `id not_equals` on update |
+| Redirect-chain guard | 1 per hop | `beforeChange`; bounded at 1,000 hops |
 
 ## Non-goals
 
-- Redirect chains
 - Composite `(enabled, from)` btree without partial predicate — redundant with unique `from` for point lookups

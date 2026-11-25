@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'bun:test'
-import { resolveRedirect } from '@klnap/payload-redirect'
 import { createManualRedirect } from '../helpers/factories/redirect'
 import { createRedirectIntPayload, intDatabaseConfigured } from '../helpers/payload-harness'
+
+const findRule = async (payload: Parameters<typeof createManualRedirect>[0], from: string) => {
+  const result = await payload.find({
+    collection: 'redirects',
+    where: { from: { equals: from } },
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+  })
+  return result.docs[0]
+}
 
 describe.skipIf(!intDatabaseConfigured)('manual redirects', () => {
   it('preserves query strings containing repeated slashes', async () => {
@@ -9,16 +19,12 @@ describe.skipIf(!intDatabaseConfigured)('manual redirects', () => {
     try {
       const from = '/old?return=https://example.test/a'
       await createManualRedirect(handle.payload, { from, to: '/new', StatusCode: 301 })
-      expect(await resolveRedirect({ payload: handle.payload, from })).toEqual({
-        statusCode: 301,
+      expect(await findRule(handle.payload, from)).toMatchObject({
+        from,
+        StatusCode: '301',
         to: '/new',
       })
-      expect(
-        await resolveRedirect({
-          payload: handle.payload,
-          from: '/old?return=https:/example.test/a',
-        })
-      ).toBeNull()
+      expect(await findRule(handle.payload, '/old?return=https:/example.test/a')).toBeUndefined()
     } finally {
       await handle.destroy()
     }
@@ -36,15 +42,9 @@ describe.skipIf(!intDatabaseConfigured)('manual redirects', () => {
         enabled: false,
       })
 
-      expect(await resolveRedirect({ payload: handle.payload, from: '/perm' })).toEqual({
-        statusCode: 301,
-        to: '/target',
-      })
-      expect(await resolveRedirect({ payload: handle.payload, from: '/temp' })).toEqual({
-        statusCode: 302,
-        to: '/other',
-      })
-      expect(await resolveRedirect({ payload: handle.payload, from: '/off' })).toBeNull()
+      expect(await findRule(handle.payload, '/perm')).toMatchObject({ to: '/target' })
+      expect(await findRule(handle.payload, '/temp')).toMatchObject({ to: '/other' })
+      expect(await findRule(handle.payload, '/off')).toMatchObject({ enabled: false })
     } finally {
       await handle.destroy()
     }

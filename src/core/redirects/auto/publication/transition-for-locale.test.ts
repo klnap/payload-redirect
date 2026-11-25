@@ -91,7 +91,7 @@ describe('transitionForLocale', () => {
         { version: { slug: 'previous', _status: 'published' } },
       ],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'en',
       previous: 'previous',
@@ -107,7 +107,7 @@ describe('transitionForLocale', () => {
       draftDoc: { slug: { en: 'current' } },
       versions: [{ version: { slug: { en: 'previous' }, _status: { en: 'published' } } }],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'en',
       previous: 'previous',
@@ -131,7 +131,7 @@ describe('transitionForLocale', () => {
         { version: { slug: { en: 'old', fr: 'old' }, _status: { fr: 'published' } } },
       ],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'fr',
       previous: 'old',
@@ -181,7 +181,7 @@ describe('transitionForLocale', () => {
         { version: { slug: { en: 'old', fr: 'old' }, _status: { fr: 'published' } } },
       ],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'fr',
       previous: 'old',
@@ -198,7 +198,7 @@ describe('transitionForLocale', () => {
         { version: { slug: 'old', _status: 'published' } },
       ],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'en',
       previous: 'old',
@@ -224,7 +224,7 @@ describe('transitionForLocale', () => {
         { version: { slug: { fr: 'old' }, _status: { fr: 'published' } } },
       ],
     })
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       published: true,
       locale: 'fr',
       previous: 'old',

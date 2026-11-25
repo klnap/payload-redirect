@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { createRedirect } from '@klnap/payload-redirect'
+import { createRedirect } from '#redirect/core/redirects/auto/create-redirect'
 import {
   createRedirectIntPayload,
   draftVersions,

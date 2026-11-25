@@ -1,7 +1,7 @@
 {
   "name": "@klnap/payload-redirect",
-  "version": "0.1.0",
-  "description": "Payload CMS plugin for managed HTTP redirects with validation and resolution helpers",
+  "version": "0.2.0",
+  "description": "Payload plugin for manual and publication-generated redirects",
   "homepage": "https://github.com/klnap/payload-redirect#readme",
   "bugs": {
     "url": "https://github.com/klnap/payload-redirect/issues"
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:consumer": "bun run build && tsc -p tsconfig.type-fixture.json",
     "test": "bun test src tests/unit",
     "test:int": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/integration tests/security --max-concurrency 1 --timeout=15000",
     "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
@@ -45,7 +46,7 @@
     "check:release": "bun pm pack --dry-run && bun run check:exports",
     "prepack": "bun run build",
     "check:exports": "bun scripts/check-exports.mjs",
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
   },
   "peerDependencies": {
     "@payloadcms/db-postgres": ">=3.94.1 <4",

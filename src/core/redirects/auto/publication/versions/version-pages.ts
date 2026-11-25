@@ -1,4 +1,4 @@
-import type { PayloadRequest } from 'payload'
+import type { CollectionSlug, PayloadRequest } from 'payload'
 import { toTypedLocale } from './document-locale.js'
 import { isPublishedVersionRow, type VersionRow } from './version-rows.js'
 
@@ -24,7 +24,7 @@ export const fetchPublishedVersionPages = async ({
 
   while (true) {
     const result = await req.payload.findVersions({
-      collection: collectionSlug,
+      collection: collectionSlug as CollectionSlug,
       where: { parent: { equals: docId } },
       sort: '-updatedAt',
       depth: 0,
@@ -64,7 +64,7 @@ export const fetchVersionHistoryPages = async ({
 
   while (true) {
     const result = await req.payload.findVersions({
-      collection: collectionSlug,
+      collection: collectionSlug as CollectionSlug,
       where: { parent: { equals: docId } },
       sort: '-updatedAt',
       depth: 0,

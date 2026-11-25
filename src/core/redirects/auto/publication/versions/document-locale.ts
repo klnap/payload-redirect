@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest, TypedLocale } from 'payload'
+import type { CollectionConfig, CollectionSlug, PayloadRequest, TypedLocale } from 'payload'
 
 export const toTypedLocale = (locale: string): TypedLocale => locale as TypedLocale
 
@@ -17,7 +17,7 @@ export const fetchLocalePublishedDoc = async ({
 }): Promise<Record<string, unknown> | undefined> => {
   try {
     return (await req.payload.findByID({
-      collection: collection.slug,
+      collection: collection.slug as CollectionSlug,
       id: docId,
       locale: toTypedLocale(locale),
       fallbackLocale: false,

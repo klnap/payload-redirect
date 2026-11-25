@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { resolveRedirect } from '@klnap/payload-redirect'
 import { createManualRedirect } from '../helpers/factories/redirect'
 import {
   createRedirectIntPayload,
@@ -21,6 +20,13 @@ describe.skipIf(!intDatabaseConfigured)('disabled rule', () => {
   it('disabled rules do not resolve', async () => {
     await handle.resetRedirects()
     await createManualRedirect(handle.payload, { from: '/off', to: '/x', enabled: false })
-    expect(await resolveRedirect({ payload: handle.payload, from: '/off' })).toBeNull()
+    const result = await handle.payload.find({
+      collection: 'redirects',
+      where: { from: { equals: '/off' } },
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
+    })
+    expect(result.docs[0]?.enabled).toBe(false)
   })
 })

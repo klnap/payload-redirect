@@ -1,14 +1,26 @@
 import { describe, expect, it } from 'bun:test'
 import type { Config } from 'payload'
 
+import { readRedirectCustom } from '#redirect/core/redirects/auto/redirect-custom'
 import { redirects } from '#redirect/plugin/payload-plugin'
-import { readRedirectCustom } from '#redirect/plugin/redirect-custom'
 
 describe('readRedirectCustom', () => {
   it('reads identifier with default enabled', () => {
     expect(readRedirectCustom({ redirect: { identifier: 'slug' } })).toEqual({
       enabled: true,
       identifier: 'slug',
+    })
+  })
+
+  it('reads the published-link wire', () => {
+    expect(
+      readRedirectCustom({
+        redirect: { identifier: 'slug', publishedLink: { path: '/articles/[slug]' } },
+      })
+    ).toEqual({
+      enabled: true,
+      identifier: 'slug',
+      publishedLink: { path: '/articles/[slug]' },
     })
   })
 
@@ -23,7 +35,7 @@ describe('readRedirectCustom', () => {
 
 describe('redirects plugin custom.redirect wiring', () => {
   it('appends afterChange only when custom.redirect is set', () => {
-    const plugin = redirects({ collection: { slug: 'redirects', fields: [] } })
+    const plugin = redirects()
     const existingHook = () => undefined
     const config = plugin({
       collections: [

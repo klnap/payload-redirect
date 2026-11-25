@@ -11,7 +11,6 @@ import {
   normalizeRelativeRedirectPath,
 } from '#redirect/core/redirects/normalize-path'
 import { findRedirectByFrom } from '#redirect/core/redirects/queries'
-import { getRedirectRuntime } from '#redirect/core/redirects/runtime'
 
 /** Enabled rules followed from `to` before a write is refused as unverifiable. Bounds the lookups per write. */
 export const MAX_REDIRECT_CHAIN_HOPS = 1000
@@ -90,7 +89,11 @@ const resolveExcludeId = (args: HookOperationArgs): string | number | undefined 
  * repeats a hop without reaching `from` predates this write, so it is accepted. Runs past
  * MAX_REDIRECT_CHAIN_HOPS are refused as unverifiable. One indexed lookup on `from` per hop.
  */
-const assertNoLoop = async (args: HookOperationArgs, normalizedFrom: string): Promise<void> => {
+const assertNoLoop = async (
+  args: HookOperationArgs,
+  normalizedFrom: string,
+  collectionSlug: string
+): Promise<void> => {
   const { data, req } = args
   if (!data || data.enabled === false) return
 
@@ -100,7 +103,6 @@ const assertNoLoop = async (args: HookOperationArgs, normalizedFrom: string): Pr
     throw new ValidationError({ errors: [{ message: LOOP_MESSAGE, path: 'to' }] })
   }
 
-  const { collectionSlug } = getRedirectRuntime(req.payload.config)
   const excludeId = resolveExcludeId(args)
   const visited = new Set<string>()
   let current = normalizedTo
@@ -131,14 +133,16 @@ const assertNoLoop = async (args: HookOperationArgs, normalizedFrom: string): Pr
   throw new ValidationError({ errors: [{ message: CHAIN_TOO_LONG_MESSAGE, path: 'to' }] })
 }
 
-const assertNoDuplicateFrom = async (args: HookOperationArgs): Promise<string | undefined> => {
+const assertNoDuplicateFrom = async (
+  args: HookOperationArgs,
+  collectionSlug: string
+): Promise<string | undefined> => {
   const { data, req } = args
   if (!data) return undefined
 
   const normalizedFrom = resolveNormalizedFrom(data)
   if (!normalizedFrom) return undefined
 
-  const { collectionSlug } = getRedirectRuntime(req.payload.config)
   const duplicate = await findDuplicateFrom({
     req,
     collectionSlug,
@@ -150,7 +154,7 @@ const assertNoDuplicateFrom = async (args: HookOperationArgs): Promise<string | 
     throw new ValidationError({ errors: [{ message: DUPLICATE_MESSAGE, path: 'from' }] })
   }
 
-  await assertNoLoop(args, normalizedFrom)
+  await assertNoLoop(args, normalizedFrom, collectionSlug)
 
   return normalizedFrom
 }
@@ -204,7 +208,9 @@ export const effectiveRuleData = (
   return { ...originalDoc, ...data }
 }
 
-export const createDuplicateBeforeChange = (): CollectionBeforeChangeHook => {
+export const createDuplicateBeforeChange = (
+  collectionSlug = 'redirects'
+): CollectionBeforeChangeHook => {
   return async (args) => {
     const { data, req, operation, originalDoc } = args
     if (operation === 'create' || operation === 'update') {
@@ -222,12 +228,15 @@ export const createDuplicateBeforeChange = (): CollectionBeforeChangeHook => {
         if (typeof data.to === 'string') data.to = effective.to
       }
     }
-    const normalizedFrom = await assertNoDuplicateFrom({
-      data: effective,
-      req,
-      operation,
-      originalDoc: args.originalDoc,
-    })
+    const normalizedFrom = await assertNoDuplicateFrom(
+      {
+        data: effective,
+        req,
+        operation,
+        originalDoc: args.originalDoc,
+      },
+      collectionSlug
+    )
 
     if (data && normalizedFrom && typeof data.from === 'string') {
       data.from = normalizedFrom

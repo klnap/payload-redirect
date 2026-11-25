@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { resolveRedirect } from '@klnap/payload-redirect'
 import { createManualRedirect } from '../helpers/factories/redirect'
 import {
   createRedirectIntPayload,
@@ -24,14 +23,18 @@ describe.skipIf(!intDatabaseConfigured)('custom redirects collection', () => {
     await handle.destroy()
   })
 
-  it('uses custom slug in runtime and resolver', async () => {
+  it('uses the configured slug for the plugin-owned collection', async () => {
     const custom = handle.payload.config.custom as { payloadRedirect?: { collectionSlug: string } }
     expect(custom.payloadRedirect?.collectionSlug).toBe('url-rules')
 
     await createManualRedirect(handle.payload, { from: '/custom', to: '/dest' }, 'url-rules')
-    expect(await resolveRedirect({ payload: handle.payload, from: '/custom' })).toEqual({
-      statusCode: 301,
-      to: '/dest',
+    const result = await handle.payload.find({
+      collection: 'url-rules',
+      where: { from: { equals: '/custom' } },
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
     })
+    expect(result.docs[0]).toMatchObject({ from: '/custom', to: '/dest', StatusCode: '301' })
   })
 })

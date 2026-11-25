@@ -70,6 +70,20 @@ describe('buildPublishedPath', () => {
     ).toBe('/pl')
   })
 
+  it('builds custom paths before applying the configured locale prefix', () => {
+    expect(
+      buildPublishedPath(
+        {
+          localePrefix: { en: '/en' },
+          getPath: ({ doc, locale }: { doc: Record<string, unknown>; locale: unknown }) =>
+            locale === 'en' ? `/articles/${String(doc.slug)}` : null,
+        },
+        { slug: 'custom' },
+        'en'
+      )
+    ).toBe('/en/articles/custom')
+  })
+
   it('null when locale missing from prefix map', () => {
     expect(
       buildPublishedPath(baseConfig({ localePrefix: { en: '', pl: '/pl' } }), { slug: 'x' }, 'de')

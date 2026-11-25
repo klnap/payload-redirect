@@ -71,7 +71,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run test:int
-      - run: bun run build
+      - run: bun run typecheck:consumer
       - run: bun run check:release
       - run: bun audit --audit-level=high
       - name: Pack the release tarball

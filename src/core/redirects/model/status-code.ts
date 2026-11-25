@@ -7,11 +7,8 @@ const SUPPORTED: readonly RedirectStatusCode[] = [301, 302]
 export const DEFAULT_REDIRECT_STATUS_CODE: RedirectStatusCode = 301
 
 const normalizeStatusCode = (value: unknown): RedirectStatusCode | undefined => {
-  const n = typeof value === 'string' ? Number(value) : value
-  if (typeof n !== 'number' || !Number.isFinite(n)) return undefined
-  if ((SUPPORTED as readonly number[]).includes(n)) {
-    return n as RedirectStatusCode
-  }
+  const code = typeof value === 'string' ? Number(value) : value
+  if (code === 301 || code === 302) return code
   return undefined
 }
 
@@ -31,6 +28,6 @@ export const requiresDestination = (_statusCode: RedirectStatusCode): boolean =>
 export const validateDestinationForStatus = (statusCode: RedirectStatusCode, to: unknown): void => {
   const hasTo = typeof to === 'string' && to.trim().length > 0
   if (!hasTo) {
-    throw new RedirectValidationError(`StatusCode ${statusCode} requires a non-empty "to" field`)
+    throw new RedirectValidationError(`statusCode ${statusCode} requires a non-empty "to" field`)
   }
 }

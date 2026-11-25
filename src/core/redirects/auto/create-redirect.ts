@@ -12,6 +12,22 @@ import { normalizePathOrUrl } from '#redirect/core/redirects/normalize-path'
 import { getRedirectRuntime } from '#redirect/core/redirects/runtime'
 import { buildPublishedPath } from '#redirect/core/url/published-path'
 
+const publishedDataForLocale = (
+  doc: Record<string, unknown> | undefined,
+  collection: Parameters<CollectionAfterChangeHook>[0]['collection'],
+  locale: string
+): Record<string, unknown> => {
+  const data = { ...doc }
+  for (const field of collection.fields) {
+    if (!('name' in field) || typeof field.name !== 'string' || !('localized' in field)) continue
+    const value = data[field.name]
+    if (field.localized === true && value && typeof value === 'object' && !Array.isArray(value)) {
+      data[field.name] = (value as Record<string, unknown>)[locale]
+    }
+  }
+  return data
+}
+
 export type CreateRedirectOptions = {
   identifier: string
 }
@@ -34,24 +50,30 @@ export const createRedirect =
     const { collectionSlug, localePrefix } = getRedirectRuntime(req.payload.config)
     const pathConfig = resolveCollectionPublishedPathConfig(collection, localePrefix)
 
-    for (const { previous, current, locale } of pairs) {
-      const resolvePath = (identifierValue: string): string | null => {
+    for (const { previous, current, locale, previousDoc, currentDoc } of pairs) {
+      const resolvePath = (
+        identifierValue: string,
+        publishedDoc?: Record<string, unknown>
+      ): string | null => {
         if (!pathConfig || !locale) return identifierValue
         const paramKey = paramKeyFromIdentifierPath(options.identifier)
         const mapping = pathConfig.params?.[paramKey]
-        const data: Record<string, unknown> =
-          mapping &&
-          typeof mapping === 'object' &&
-          'localized' in mapping &&
-          mapping.localized === true
-            ? { [paramKeyFromIdentifierPath(options.identifier)]: { [locale]: identifierValue } }
-            : identifierValueForPath(options.identifier, identifierValue)
+        const data = publishedDataForLocale(publishedDoc, collection, locale)
+        if (data[paramKey] === undefined) {
+          data[paramKey] =
+            mapping &&
+            typeof mapping === 'object' &&
+            'localized' in mapping &&
+            mapping.localized === true
+              ? { [locale]: identifierValue }
+              : identifierValueForPath(options.identifier, identifierValue)[paramKey]
+        }
         const built = buildPublishedPath(pathConfig, data, locale)
         return built
       }
 
-      const fromRaw = resolvePath(previous)
-      const toRaw = resolvePath(current)
+      const fromRaw = resolvePath(previous, previousDoc)
+      const toRaw = resolvePath(current, currentDoc)
       if (!fromRaw || !toRaw) {
         continue
       }

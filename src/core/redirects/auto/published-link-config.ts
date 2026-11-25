@@ -27,13 +27,17 @@ const parsePublishedLinkWire = (value: unknown): PublishedLinkWire | null => {
   if (isRecord(value.params) && Object.keys(value.params).length > 0) {
     wire.params = value.params as RouteParamsConfig
   }
+  if (typeof value.getPath === 'function') {
+    wire.getPath = value.getPath
+  }
   if (isRecord(value.localePrefix) && Object.keys(value.localePrefix).length > 0) {
     wire.localePrefix = value.localePrefix as LocalePrefix
   }
   const hasTemplate =
     Boolean(wire.path) ||
     Boolean(wire.paths && Object.keys(wire.paths).length > 0) ||
-    Boolean(wire.routes && Object.keys(wire.routes).length > 0)
+    Boolean(wire.routes && Object.keys(wire.routes).length > 0) ||
+    typeof wire.getPath === 'function'
   return hasTemplate ? wire : null
 }
 

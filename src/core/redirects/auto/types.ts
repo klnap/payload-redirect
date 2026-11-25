@@ -3,6 +3,8 @@ export type PublicationTransition = {
   locale?: string
   previous?: string
   current?: string
+  previousDoc?: Record<string, unknown>
+  currentDoc?: Record<string, unknown>
 }
 
 export type GetPublicationTransitionOptions = {

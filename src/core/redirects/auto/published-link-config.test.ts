@@ -25,6 +25,7 @@ describe('readPublishedLinkWire', () => {
   })
 
   it('reads all supported wire fields and rejects unsupported or disabled shapes', () => {
+    const getPath = () => '/custom/path'
     expect(
       readPublishedLinkWire({
         redirect: {
@@ -33,6 +34,7 @@ describe('readPublishedLinkWire', () => {
             routes: { '/page/[slug]': { en: '/page/[slug]' } },
             params: { slug: 'slug' },
             localePrefix: { en: '/en' },
+            getPath,
           },
         },
       })
@@ -41,6 +43,7 @@ describe('readPublishedLinkWire', () => {
       routes: { '/page/[slug]': { en: '/page/[slug]' } },
       params: { slug: 'slug' },
       localePrefix: { en: '/en' },
+      getPath,
     })
     expect(readPublishedLinkWire(null)).toBeNull()
     expect(readPublishedLinkWire({ redirect: [] })).toBeNull()

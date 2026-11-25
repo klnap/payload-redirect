@@ -37,6 +37,10 @@ export const ensureAutoRedirect = async ({
     enabled: true,
     origin: 'auto' as const,
   }
+  const payload = req.payload as unknown as {
+    create: (args: Record<string, unknown>) => Promise<unknown>
+    update: (args: Record<string, unknown>) => Promise<unknown>
+  }
 
   const existing = await findRedirectByFrom(req.payload, {
     collectionSlug,
@@ -52,7 +56,7 @@ export const ensureAutoRedirect = async ({
       return 'skipped'
     }
     if (doc.origin === 'auto') {
-      await req.payload.update({
+      await payload.update({
         collection: collectionSlug,
         id: doc.id,
         data: {
@@ -69,7 +73,7 @@ export const ensureAutoRedirect = async ({
     return 'skipped'
   }
 
-  await req.payload.create({
+  await payload.create({
     collection: collectionSlug,
     data,
     context: internalContext,

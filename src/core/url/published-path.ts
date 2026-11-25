@@ -9,6 +9,7 @@ export type PublishedLinkPathTemplate = {
   paths?: Record<string, string>
   routes?: PreviewRoutes
   params?: RouteParamsConfig
+  getPath?: unknown
 }
 
 export type ResolvedPublishedPathConfig = PublishedLinkPathTemplate & {
@@ -72,6 +73,20 @@ function joinPrefixAndPath(prefix: string, pathname: string): string {
   return `${prefix}${normalized}`
 }
 
+function isSiteRelativePath(path: string): boolean {
+  return (
+    path.startsWith('/') &&
+    !path.startsWith('//') &&
+    !path.includes('?') &&
+    !path.includes('#') &&
+    !path.includes('\\') &&
+    ![...path].some((character) => {
+      const code = character.charCodeAt(0)
+      return code < 32 || code === 127
+    })
+  )
+}
+
 function usesLegacyPreviewPathBuilder(config: ResolvedPublishedPathConfig): boolean {
   const hasNewTemplate =
     Boolean(config.path) || Boolean(config.paths && Object.keys(config.paths).length > 0)
@@ -85,6 +100,22 @@ export function buildPublishedPath(
   data: Record<string, unknown>,
   locale: unknown
 ): string | null {
+  if (typeof config.getPath === 'function') {
+    const path = (
+      config.getPath as (args: { doc: Record<string, unknown>; locale: unknown }) => unknown
+    )({ doc: data, locale })
+    if (path === null) return null
+    if (typeof path !== 'string') {
+      throw new Error('getPath must return a path or null')
+    }
+    const code = localeCode(locale)
+    if (!code) return null
+    const prefix = resolveLocaleRoutePrefix(config.localePrefix, code)
+    if (prefix === null) return null
+    const result = joinPrefixAndPath(prefix, path)
+    return isSiteRelativePath(result) ? result : null
+  }
+
   if (usesLegacyPreviewPathBuilder(config)) {
     if (!config.routes) throw new Error('Legacy preview path requires locale routes')
     return buildPreviewPath(config.routes, data, locale, config.params)
@@ -102,7 +133,8 @@ export function buildPublishedPath(
   const prefix = resolveLocaleRoutePrefix(config.localePrefix, code)
   if (prefix === null) return null
 
-  return joinPrefixAndPath(prefix, resolved)
+  const result = joinPrefixAndPath(prefix, resolved)
+  return isSiteRelativePath(result) ? result : null
 }
 
 export function resolvePublishedPathConfig(
@@ -114,7 +146,7 @@ export function resolvePublishedPathConfig(
     link.routes && typeof link.routes === 'object' && Object.keys(link.routes).length > 0
   const hasPath = typeof link.path === 'string' && link.path.length > 0
   const hasPaths = link.paths && Object.keys(link.paths).length > 0
-  if (!hasRoutes && !hasPath && !hasPaths) return null
+  if (!hasRoutes && !hasPath && !hasPaths && typeof link.getPath !== 'function') return null
 
   return {
     localePrefix: mergeLocalePrefix(pluginLocalePrefix, link.localePrefix),
@@ -122,5 +154,6 @@ export function resolvePublishedPathConfig(
     paths: link.paths,
     routes: hasRoutes ? link.routes : undefined,
     params: link.params,
+    getPath: link.getPath,
   }
 }

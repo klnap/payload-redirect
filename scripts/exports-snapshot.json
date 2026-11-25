@@ -1,11 +1,6 @@
 {
-  ".": [
-    "createRedirect",
-    "redirects",
-    "resolveRedirect",
-    "RedirectAmbiguousRuleError",
-    "RedirectConfigError",
-    "RedirectValidationError",
-    "REDIRECT_CONTEXT_KEYS"
-  ]
+  ".": {
+    "runtime": ["redirects"],
+    "types": ["RedirectOrigin", "RedirectsOptions", "RedirectStatusCode"]
+  }
 }

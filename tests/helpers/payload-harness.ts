@@ -131,7 +131,12 @@ export async function createRedirectIntPayload(
       }),
       plugins: [
         redirects({
-          collection: options.pluginCollection ?? { slug: 'redirects', fields: [] },
+          overrides: options.pluginCollection
+            ? {
+                slug: options.pluginCollection.slug,
+                labels: options.pluginCollection.labels,
+              }
+            : undefined,
           localePrefix: options.localePrefix,
         }),
       ],
@@ -145,7 +150,7 @@ export async function createRedirectIntPayload(
     }
 
     async function resetArticles() {
-      for (const slug of ['articles', 'items', 'fail-publish']) {
+      for (const slug of ['articles', 'custom-articles', 'items', 'fail-publish']) {
         if (payload.collections[slug]) {
           await wipeCollection(payload, slug)
         }

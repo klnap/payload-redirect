@@ -1,18 +1,13 @@
-import type { Payload, PayloadRequest, SelectType, Where } from 'payload'
+import type { CollectionSlug, Payload, PayloadRequest, SelectType, Where } from 'payload'
 import type { RedirectStatusCode } from '#redirect/core/redirects/model/status-code'
-
-/** Fields loaded by `resolveRedirect` (omit description). */
-export const redirectResolveSelect = {
-  from: true,
-  to: true,
-  StatusCode: true,
-  enabled: true,
-} as const
 
 /** Lookup hooks / idempotent writes (includes `id`). */
 export const redirectLookupSelect = {
   id: true,
-  ...redirectResolveSelect,
+  from: true,
+  to: true,
+  StatusCode: true,
+  enabled: true,
   origin: true,
 } as const
 
@@ -45,7 +40,7 @@ export const findRedirectByFrom = async (
     select = redirectLookupSelect,
     excludeId,
   }: FindByFromBase & { excludeId?: string | number }
-) => {
+): Promise<{ docs: RedirectLookupDoc[] }> => {
   const where: Where =
     excludeId !== undefined
       ? {
@@ -53,8 +48,8 @@ export const findRedirectByFrom = async (
         }
       : { from: { equals: from } }
 
-  return payload.find({
-    collection: collectionSlug,
+  return (await payload.find({
+    collection: collectionSlug as CollectionSlug,
     where,
     limit: 1,
     depth: 0,
@@ -62,5 +57,5 @@ export const findRedirectByFrom = async (
     overrideAccess,
     context,
     req,
-  })
+  })) as unknown as { docs: RedirectLookupDoc[] }
 }

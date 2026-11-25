@@ -1,70 +1,48 @@
-import type { CollectionConfig } from 'payload'
-import {
-  mergeRedirectsAccess,
-  type RedirectsCollectionAccess,
-  redirectCreateAccess,
-  redirectDeleteAccess,
-  redirectReadAccess,
-  redirectUpdateAccess,
-} from './access.js'
+import type { CollectionConfig, Field } from 'payload'
+import { defaultRedirectAccess } from './access.js'
 import { createDuplicateBeforeChange } from './duplicate-guard.js'
-import { buildRedirectFields, mergeRedirectFields } from './fields.js'
+import { assertRedirectFields, buildRedirectFields, mergeRedirectFields } from './fields.js'
 import { createRedirectOriginBeforeChange } from './origin-hook.js'
+import type { RedirectCollectionOverrides } from './types.js'
 
 const DEFAULT_SLUG = 'redirects'
 
-export type CreateRedirectsCollectionOptions = {
-  base?: CollectionConfig
-  /** Soft-delete (trash). Default true; set false to disable. Base collection `trash` wins when set. */
-  trash?: boolean
-  /** Plugin-level access overrides (applied when base collection omits a handler). */
-  access?: RedirectsCollectionAccess
-}
-
 export const createRedirectsCollection = (
-  options: CreateRedirectsCollectionOptions
+  overrides: RedirectCollectionOverrides = {}
 ): CollectionConfig => {
-  const base = options.base
-  const slug = base?.slug ?? DEFAULT_SLUG
-  const fields = base?.fields ? mergeRedirectFields(base.fields) : buildRedirectFields()
+  const defaultFields = buildRedirectFields()
+  const fields: Field[] = overrides.fields
+    ? mergeRedirectFields(overrides.fields({ defaultFields }))
+    : defaultFields
 
-  const existingHooks = base?.hooks ?? {}
-  const trash = base?.trash ?? options.trash ?? true
+  assertRedirectFields(fields)
 
-  const access = mergeRedirectsAccess(
-    base?.access as RedirectsCollectionAccess | undefined,
-    options.access
-  )
+  const slug = overrides.slug ?? DEFAULT_SLUG
+  const existingHooks = overrides.hooks ?? {}
+  const access = { ...defaultRedirectAccess, ...overrides.access }
 
   return {
-    ...base,
+    ...overrides,
     slug,
-    trash,
-    versions: base?.versions ?? false,
-    timestamps: base?.timestamps ?? true,
+    trash: overrides.trash ?? true,
+    versions: overrides.versions ?? false,
+    timestamps: overrides.timestamps ?? true,
     admin: {
       useAsTitle: 'from',
       defaultColumns: ['from', 'to', 'StatusCode', 'origin', 'enabled', 'updatedAt'],
       listSearchableFields: ['from', 'to'],
-      ...base?.admin,
+      ...overrides.admin,
     },
-    defaultSort: 'from',
-    access: {
-      read: access.read ?? redirectReadAccess,
-      create: access.create ?? redirectCreateAccess,
-      update: access.update ?? redirectUpdateAccess,
-      delete: access.delete ?? redirectDeleteAccess,
-    },
+    defaultSort: overrides.defaultSort ?? 'from',
+    access,
     fields,
     hooks: {
       ...existingHooks,
       beforeChange: [
         ...(existingHooks.beforeChange ?? []),
         createRedirectOriginBeforeChange(),
-        createDuplicateBeforeChange(),
+        createDuplicateBeforeChange(slug),
       ],
     },
   }
 }
-
-export type { RedirectsCollectionAccess } from './access.js'

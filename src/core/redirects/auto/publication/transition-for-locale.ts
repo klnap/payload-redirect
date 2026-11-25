@@ -143,6 +143,17 @@ export const transitionForLocale = async ({
   if (!current) {
     return { published: true }
   }
+  const currentDoc = [draftDoc, hookDoc, currentVersion, identifierSource].find(
+    (candidate): candidate is Record<string, unknown> =>
+      candidate !== undefined &&
+      extractIdentifierFromVersionSnapshot(
+        candidate,
+        identifier,
+        locale,
+        localizedField,
+        locale
+      ) === current
+  )
 
   let defaultSlug: string | undefined
   if (localizedField && defaultLocale) {
@@ -202,6 +213,7 @@ export const transitionForLocale = async ({
   }
 
   let previous: string | undefined
+  let previousDoc: Record<string, unknown> | undefined
   for (const row of versionsForPrevious) {
     const version = row.version
     if (!version) continue
@@ -230,6 +242,7 @@ export const transitionForLocale = async ({
       continue
     }
     previous = candidate
+    previousDoc = version
     break
   }
 
@@ -252,5 +265,5 @@ export const transitionForLocale = async ({
     }
   }
 
-  return { published: true, locale, previous, current }
+  return { published: true, locale, previous, current, previousDoc, currentDoc }
 }

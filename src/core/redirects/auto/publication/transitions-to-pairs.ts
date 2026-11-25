@@ -5,6 +5,8 @@ export type PublicationTransitionPair = {
   previous: string
   current: string
   locale?: string
+  previousDoc?: Record<string, unknown>
+  currentDoc?: Record<string, unknown>
 }
 
 export const publicationTransitionsToPairs = (
@@ -18,7 +20,13 @@ export const publicationTransitionsToPairs = (
       current: t.current,
     })
     if (!scalar) continue
-    pairs.push({ previous: scalar.previous, current: scalar.current, locale: t.locale })
+    pairs.push({
+      previous: scalar.previous,
+      current: scalar.current,
+      locale: t.locale,
+      previousDoc: t.previousDoc,
+      currentDoc: t.currentDoc,
+    })
   }
   return pairs
 }

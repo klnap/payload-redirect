@@ -20,7 +20,24 @@ const articlesWithPublishedPath: CollectionConfig = {
       identifier: 'slug',
       publishedLink: {
         path: '/articles/[slug]',
-        params: { slug: { field: 'slug' } },
+      },
+    },
+  },
+}
+
+const articlesWithCustomPath: CollectionConfig = {
+  slug: 'custom-articles',
+  versions: draftVersions,
+  fields: [
+    { name: 'slug', type: 'text', required: true },
+    { name: 'category', type: 'text', required: true },
+  ],
+  custom: {
+    redirect: {
+      identifier: 'slug',
+      publishedLink: {
+        getPath: ({ doc }: { doc: Record<string, unknown> }) =>
+          `/articles/${String(doc.category)}/${String(doc.slug)}`,
       },
     },
   },
@@ -32,7 +49,7 @@ describe.skipIf(!intDatabaseConfigured)('auto redirects with published path temp
   beforeAll(async () => {
     handle = await createRedirectIntPayload({
       localePrefix: { en: '' },
-      collections: [articlesWithPublishedPath],
+      collections: [articlesWithPublishedPath, articlesWithCustomPath],
     })
   }, 120_000)
 
@@ -68,6 +85,34 @@ describe.skipIf(!intDatabaseConfigured)('auto redirects with published path temp
     expect(redirects.docs[0]?.to).toBe('/articles/new-slug')
     expect(redirects.docs[0]?.origin).toBe('auto')
   })
+
+  it('passes previous and current published snapshots to getPath', async () => {
+    await handle.resetArticles()
+    await handle.resetRedirects()
+
+    const created = await handle.payload.create({
+      collection: 'custom-articles',
+      data: { slug: 'old', category: 'news', _status: 'published' },
+    })
+
+    await handle.payload.update({
+      collection: 'custom-articles',
+      id: created.id,
+      data: { slug: 'new', category: 'guides' },
+      draft: true,
+    })
+
+    await handle.payload.update({
+      collection: 'custom-articles',
+      id: created.id,
+      data: { _status: 'published' },
+    })
+
+    const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })
+    expect(redirects.docs.map(({ from, to }) => ({ from, to }))).toEqual([
+      { from: '/articles/news/old', to: '/articles/guides/new' },
+    ])
+  })
 })
 
 describe.skipIf(!intDatabaseConfigured)(
@@ -88,7 +133,6 @@ describe.skipIf(!intDatabaseConfigured)(
           publishedLink: {
             path: '/articles/[slug]',
             paths: { pl: '/artykuly/[slug]' },
-            params: { slug: { field: 'slug', localized: true } },
           },
         },
       },
