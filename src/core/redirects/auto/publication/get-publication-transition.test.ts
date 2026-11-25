@@ -111,6 +111,19 @@ describe('getPublicationTransition', () => {
       ['en', 'pl']
     )
   })
+  it('uses localized publication status before Payload’s default request locale', async () => {
+    const ctx = makeArgs({
+      locale: 'en',
+      query: {},
+      locales: ['en', 'pl'],
+      collection: { slug: 'pages', fields: [], versions: { drafts: { localizeStatus: true } } },
+      doc: { id: 'page-1', _status: { en: 'published', pl: 'published' } },
+      currentDoc: { id: 'page-1', _status: 'published' },
+    })
+    expect((await getPublicationTransition(ctx.args as never)).map(({ locale }) => locale)).toEqual(
+      ['en', 'pl']
+    )
+  })
   it('accepts the published snapshot returned for a localized locale', async () => {
     const ctx = makeArgs({
       locale: null,

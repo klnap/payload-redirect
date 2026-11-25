@@ -45,13 +45,13 @@ export const getRequestLocales = (
   if (requestedLocale && requestedLocale !== 'all') return [requestedLocale]
   if (requestedLocale === 'all') return localization
 
-  if (typeof req.locale === 'string') return [req.locale]
-
   if (status && typeof status === 'object' && !Array.isArray(status)) {
     return Object.entries(status as Record<string, unknown>)
       .filter(([, value]) => value === 'published')
       .map(([locale]) => locale)
   }
+
+  if (typeof req.locale === 'string') return [req.locale]
 
   return status === 'published' ? localization : []
 }

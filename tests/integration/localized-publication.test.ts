@@ -4,7 +4,7 @@ import {
   createRedirectIntPayload,
   intDatabaseConfigured,
   type RedirectIntHandle,
-  withPublishAllQuery,
+  withPublishAllLocales,
 } from '../helpers/payload-harness'
 
 process.env.PAYLOAD_REDIRECT_DEBUG = '1'
@@ -52,7 +52,7 @@ describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
       collection: 'articles',
       id: created.id,
       data: { _status: 'published' },
-      ...withPublishAllQuery,
+      ...withPublishAllLocales,
     })
 
     await handle.payload.update({
@@ -81,7 +81,7 @@ describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
       collection: 'articles',
       id: created.id,
       data: { _status: 'published' },
-      ...withPublishAllQuery,
+      ...withPublishAllLocales,
     })
     await handle.payload.update({
       collection: 'articles',

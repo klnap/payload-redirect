@@ -61,8 +61,8 @@ export const localizedDraftVersions = {
   },
 }
 
-export const withPublishAllQuery = {
-  query: { publishAllLocales: 'true' as const },
+export const withPublishAllLocales = {
+  publishAllLocales: true,
 }
 
 export const withDraftQuery = {
