@@ -104,8 +104,8 @@ describe('createRedirect', () => {
     expect(unpublished.findVersions).not.toHaveBeenCalled()
   })
 
-  it('compares only the immediately previous published snapshot', async () => {
-    const unchanged = makeArgs({
+  it('skips repeated current-path snapshots to find the previous distinct path', async () => {
+    const repeated = makeArgs({
       currentDoc: { id: 'p', slug: 'same', _status: 'published' },
       versions: [
         { version: { slug: 'same', _status: 'published' } },
@@ -113,8 +113,18 @@ describe('createRedirect', () => {
         { version: { slug: 'older', _status: 'published' } },
       ],
     })
-    await createForPath({ path: '/[slug]' })(unchanged.args as never)
-    expect(unchanged.find).not.toHaveBeenCalled()
+    await createForPath({ path: '/[slug]' })(repeated.args as never)
+    expect(repeated.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          from: '/en/older',
+          to: '/en/same',
+          statusCode: '301',
+          enabled: true,
+          origin: 'auto',
+        },
+      })
+    )
   })
 
   it('skips draft saves and unsafe or unresolved previous paths', async () => {

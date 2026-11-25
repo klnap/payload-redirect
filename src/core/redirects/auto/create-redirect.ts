@@ -29,14 +29,10 @@ export const createRedirect =
       if (!currentPath) continue
 
       const to = normalizePathOrUrl(currentPath)
-      const [latestPublishedDoc, ...earlierPublishedDocs] = publishedDocs
-      const latestPath = latestPublishedDoc
-        ? buildPublishedPath(pathOptions, latestPublishedDoc, locale, localePrefixes)
-        : null
-      const previousPublishedDoc =
-        latestPath && normalizePathOrUrl(latestPath) === to
-          ? earlierPublishedDocs[0]
-          : latestPublishedDoc
+      const previousPublishedDoc = publishedDocs.find((publishedDoc) => {
+        const path = buildPublishedPath(pathOptions, publishedDoc, locale, localePrefixes)
+        return !path || normalizePathOrUrl(path) !== to
+      })
       if (!previousPublishedDoc) continue
 
       const previousPath = buildPublishedPath(
