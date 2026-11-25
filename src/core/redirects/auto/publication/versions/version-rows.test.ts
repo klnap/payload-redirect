@@ -19,14 +19,17 @@ describe('isPublishedVersionRow', () => {
     expect(isPublishedVersionRow(row, undefined)).toBe(false)
   })
 
-  it('limits scalar published status to default locale when status is localized', () => {
+  it('accepts scalar published status for a locale-scoped version query', () => {
     const row = { version: { _status: 'published' } }
     expect(isPublishedVersionRow(row, 'pl', { localizeStatus: true, defaultLocale: 'pl' })).toBe(
       true
     )
-    expect(isPublishedVersionRow(row, 'en', { localizeStatus: true, defaultLocale: 'pl' })).toBe(
-      false
+    expect(isPublishedVersionRow(row, 'de', { localizeStatus: true, defaultLocale: 'pl' })).toBe(
+      true
     )
+    expect(
+      isPublishedVersionRow(row, undefined, { localizeStatus: true, defaultLocale: 'pl' })
+    ).toBe(false)
     expect(isPublishedVersionRow(row, 'en')).toBe(true)
   })
 })

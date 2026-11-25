@@ -24,7 +24,7 @@ export const isPublishedVersionRow = (
     return locale !== undefined && (status as Record<string, unknown>)[locale] === 'published'
   }
   if (status === 'published') {
-    return !options?.localizeStatus || locale === options.defaultLocale
+    return !options?.localizeStatus || locale !== undefined
   }
   return false
 }
