@@ -101,7 +101,7 @@ describe('getPublicationTransition', () => {
   it('honors publish-all before Payload’s default request locale', async () => {
     const ctx = makeArgs({
       locale: 'en',
-      query: { publishAllLocales: 'true' },
+      query: { locale: 'en', publishAllLocales: 'true' },
       locales: ['en', 'pl'],
       collection: { slug: 'pages', fields: [], versions: { drafts: { localizeStatus: true } } },
       doc: { id: 'page-1', _status: { en: 'published', pl: 'published' } },

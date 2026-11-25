@@ -13,18 +13,23 @@ export const getRequestLocales = (
   const localization = listLocales(req)
   if (localization.length === 0) return [undefined]
 
-  const requested =
-    (typeof req.query?.publishSpecificLocale === 'string' && req.query.publishSpecificLocale) ||
-    (typeof req.query?.locale === 'string' && req.query.locale)
-  if (requested && requested !== 'all') return [requested]
+  const specificLocale =
+    typeof req.query?.publishSpecificLocale === 'string'
+      ? req.query.publishSpecificLocale
+      : undefined
+  if (specificLocale && specificLocale !== 'all') return [specificLocale]
 
   if (
-    requested === 'all' ||
+    specificLocale === 'all' ||
     req.query?.publishAllLocales === 'true' ||
     req.query?.publishAllLocales === true
   ) {
     return localization
   }
+
+  const requestedLocale = typeof req.query?.locale === 'string' ? req.query.locale : undefined
+  if (requestedLocale && requestedLocale !== 'all') return [requestedLocale]
+  if (requestedLocale === 'all') return localization
 
   if (typeof req.locale === 'string') return [req.locale]
 
