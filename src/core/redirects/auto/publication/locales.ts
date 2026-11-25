@@ -13,6 +13,20 @@ export const getRequestLocales = (
   const localization = listLocales(req)
   if (localization.length === 0) return [undefined]
 
+  if (process.env.PAYLOAD_REDIRECT_DEBUG === '1') {
+    process.stderr.write(
+      `[DEBUG-locale-selection] ${JSON.stringify({
+        reqLocale: req.locale,
+        query: {
+          publishSpecificLocale: req.query?.publishSpecificLocale,
+          publishAllLocales: req.query?.publishAllLocales,
+          locale: req.query?.locale,
+        },
+        status,
+      })}\n`
+    )
+  }
+
   const specificLocale =
     typeof req.query?.publishSpecificLocale === 'string'
       ? req.query.publishSpecificLocale
