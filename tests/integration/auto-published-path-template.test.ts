@@ -8,8 +8,6 @@ import {
   withPublishAllLocales,
 } from '../helpers/payload-harness'
 
-process.env.PAYLOAD_REDIRECT_DEBUG = '1'
-
 const articlesWithPublishedPath: CollectionConfig = {
   slug: 'articles',
   versions: draftVersions,

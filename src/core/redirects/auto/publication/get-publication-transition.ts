@@ -19,25 +19,9 @@ export const getPublicationTransition = async (
   const defaultLocale = resolveDefaultLocale(req)
   const transitions: PublicationTransition[] = []
 
-  if (process.env.PAYLOAD_REDIRECT_DEBUG === '1') {
-    process.stderr.write(
-      `[DEBUG-locale-transitions] ${JSON.stringify({ locales, localizeStatus, defaultLocale })}\n`
-    )
-  }
-
   for (const locale of locales) {
     const currentDoc = await fetchLocalePublishedDoc({ req, collection, docId, locale })
-    if (!currentDoc || !isLocalePublished(currentDoc._status, locale ?? '')) {
-      if (process.env.PAYLOAD_REDIRECT_DEBUG === '1') {
-        process.stderr.write(
-          `[DEBUG-locale-snapshot-rejected] ${JSON.stringify({
-            locale,
-            currentStatus: currentDoc?._status,
-          })}\n`
-        )
-      }
-      continue
-    }
+    if (!currentDoc || !isLocalePublished(currentDoc._status, locale ?? '')) continue
 
     const publishedDocs = (
       await fetchPublishedVersionPages({
@@ -51,15 +35,6 @@ export const getPublicationTransition = async (
       .map((row) => row.version)
       .filter((version): version is Record<string, unknown> => Boolean(version))
 
-    if (process.env.PAYLOAD_REDIRECT_DEBUG === '1') {
-      process.stderr.write(
-        `[DEBUG-locale-published-history] ${JSON.stringify({
-          locale,
-          currentSlug: currentDoc.slug,
-          publishedSlugs: publishedDocs.map(({ slug }) => slug),
-        })}\n`
-      )
-    }
     transitions.push({ locale, currentDoc, publishedDocs })
   }
 

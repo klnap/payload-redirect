@@ -7,8 +7,6 @@ import {
   withPublishAllLocales,
 } from '../helpers/payload-harness'
 
-process.env.PAYLOAD_REDIRECT_DEBUG = '1'
-
 describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
   let handle: RedirectIntHandle
 
