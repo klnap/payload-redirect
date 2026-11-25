@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/tsconfig",
+  "title": "JSON schema for TypeScript compiler configuration (local copy for offline editor validation)",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "extends": { "type": "string" },
+    "compilerOptions": { "type": "object" },
+    "include": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exclude": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "references": { "type": "array" },
+    "tsc-alias": { "type": "object" }
+  },
+  "additionalProperties": true
+}

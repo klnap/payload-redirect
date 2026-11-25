@@ -1,0 +1,85 @@
+{
+  "name": "@klnap/payload-redirect",
+  "version": "0.1.0",
+  "description": "Payload CMS plugin for managed HTTP redirects with validation and resolution helpers",
+  "homepage": "https://github.com/klnap/payload-redirect#readme",
+  "bugs": {
+    "url": "https://github.com/klnap/payload-redirect/issues"
+  },
+  "keywords": [
+    "payload",
+    "payloadcms",
+    "payload-plugin",
+    "redirects",
+    "nextjs"
+  ],
+  "license": "MIT",
+  "author": "klnap",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/klnap/payload-redirect"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/exports/index.d.ts",
+      "import": "./dist/exports/index.js",
+      "default": "./dist/exports/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test src tests/unit",
+    "test:int": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/integration tests/security --max-concurrency 1 --timeout=15000",
+    "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "lint:oxlint": "oxlint --config .oxlintrc.json --deny-warnings --no-error-on-unmatched-pattern",
+    "check:release": "bun pm pack --dry-run && bun run check:exports",
+    "prepack": "bun run build",
+    "check:exports": "bun scripts/check-exports.mjs",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
+  },
+  "peerDependencies": {
+    "@payloadcms/db-postgres": ">=3.94.1 <4",
+    "payload": ">=3.94.1 <4"
+  },
+  "peerDependenciesMeta": {
+    "@payloadcms/db-postgres": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@swc/core": "1.16.22",
+    "@payloadcms/db-postgres": "3.94.1",
+    "@payloadcms/richtext-lexical": "3.94.1",
+    "@types/bun": "^1.4.4",
+    "@types/pg": "^8.23.1",
+    "@biomejs/biome": "2.6.8",
+    "oxlint": "1.94.0",
+    "dependency-cruiser": "^18.8.0",
+    "payload": "3.94.1",
+    "pg": "^8.23.1",
+    "tsc-alias": "^1.9.10",
+    "typescript": "7.0.2",
+    "@types/node": "^26.0.0"
+  },
+  "overrides": {
+    "happy-dom": "21.0.4"
+  },
+  "engines": {
+    "node": "^24.22.3 || >=26.13.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/exports/index.js",
+  "types": "./dist/exports/index.d.ts"
+}

@@ -1,0 +1,16 @@
+node_modules/
+.bun/
+dist/
+coverage/
+.next/
+.turbo/
+.test-output/
+test-results/
+playwright-report/
+blob-report/
+.cache/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.template
