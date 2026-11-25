@@ -322,7 +322,7 @@ describe('loop walk is not blinded by requester read access', () => {
     const hook = createDuplicateBeforeChange()
     await expect(
       hook({
-        data: { from: '/a', to: '/c', enabled: true, StatusCode: 301 },
+        data: { from: '/a', to: '/c', enabled: true, statusCode: 301 },
         operation: 'create',
         req,
       } as never)

@@ -48,7 +48,7 @@ export const buildRedirectFields = (): Field[] => [
     validate: (value: unknown, { siblingData }: { siblingData: Record<string, unknown> }) => {
       try {
         const statusCode = assertRedirectStatusCode(
-          siblingData?.StatusCode ?? DEFAULT_REDIRECT_STATUS_CODE
+          siblingData?.statusCode ?? DEFAULT_REDIRECT_STATUS_CODE
         )
         validateDestinationForStatus(statusCode, value)
         if (
@@ -64,7 +64,7 @@ export const buildRedirectFields = (): Field[] => [
     },
   },
   {
-    name: 'StatusCode',
+    name: 'statusCode',
     type: 'select',
     label: 'Type',
     defaultValue: String(DEFAULT_REDIRECT_STATUS_CODE),
@@ -79,7 +79,7 @@ export const buildRedirectFields = (): Field[] => [
         assertRedirectStatusCode(value)
         return true
       } catch (error) {
-        return error instanceof Error ? error.message : 'Invalid StatusCode'
+        return error instanceof Error ? error.message : 'Invalid statusCode'
       }
     },
     admin: { position: 'sidebar' },
@@ -166,7 +166,7 @@ export const assertRedirectFields = (fields: Field[]): void => {
   const expected = new Map([
     ['from', 'text'],
     ['to', 'text'],
-    ['StatusCode', 'select'],
+    ['statusCode', 'select'],
     ['enabled', 'checkbox'],
     ['origin', 'select'],
   ])

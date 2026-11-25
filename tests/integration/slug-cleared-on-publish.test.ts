@@ -24,7 +24,7 @@ describe.skipIf(!intDatabaseConfigured)('slug cleared on publish', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/old', title: 'A', _status: 'published' },
+      data: { slug: 'old', title: 'A', _status: 'published' },
     })
 
     await handle.payload.update({

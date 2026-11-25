@@ -24,8 +24,7 @@ describe.skipIf(!intDatabaseConfigured)('custom redirects collection', () => {
   })
 
   it('uses the configured slug for the plugin-owned collection', async () => {
-    const custom = handle.payload.config.custom as { payloadRedirect?: { collectionSlug: string } }
-    expect(custom.payloadRedirect?.collectionSlug).toBe('url-rules')
+    expect(handle.payload.config.collections.some(({ slug }) => slug === 'url-rules')).toBe(true)
 
     await createManualRedirect(handle.payload, { from: '/custom', to: '/dest' }, 'url-rules')
     const result = await handle.payload.find({
@@ -35,6 +34,6 @@ describe.skipIf(!intDatabaseConfigured)('custom redirects collection', () => {
       pagination: false,
       overrideAccess: true,
     })
-    expect(result.docs[0]).toMatchObject({ from: '/custom', to: '/dest', StatusCode: '301' })
+    expect(result.docs[0]).toMatchObject({ from: '/custom', to: '/dest', statusCode: '301' })
   })
 })

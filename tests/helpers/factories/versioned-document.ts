@@ -17,7 +17,5 @@ export const versionedArticlesCollection = (
     },
     { name: 'title', type: 'text' },
   ],
-  custom: {
-    redirect: { identifier: 'slug' },
-  },
+  custom: { redirect: { path: '/[slug]' } },
 })

@@ -25,7 +25,7 @@ describe.skipIf(!intDatabaseConfigured)('localized fallback regression', () => {
 
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/produkt', title: 'PL' },
+      data: { slug: 'produkt', title: 'PL' },
       locale: 'pl',
       draft: true,
     })
@@ -40,7 +40,7 @@ describe.skipIf(!intDatabaseConfigured)('localized fallback regression', () => {
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/new-en' },
+      data: { slug: 'new-en' },
       locale: 'en',
       draft: true,
     })

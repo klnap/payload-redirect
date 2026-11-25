@@ -13,7 +13,7 @@ describe('redirects plugin registration', () => {
     expect(collection?.fields.map((field) => ('name' in field ? field.name : undefined))).toEqual([
       'from',
       'to',
-      'StatusCode',
+      'statusCode',
       'enabled',
       'origin',
     ])

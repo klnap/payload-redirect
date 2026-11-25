@@ -3,9 +3,9 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "#redirect/*": ["./src/*"]
+      "@klnap/payload-redirect": ["./dist/exports/index.d.ts"]
     }
   },
-  "include": ["type-fixture/**/*.ts"],
+  "include": ["type-fixture/consumer.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -19,7 +19,7 @@ Collection defaults: `versions: false`, `defaultSort: 'from'`, `timestamps: true
 
 The plugin owns this collection and enforces compatible `from` / `enabled` flags.
 
-## Postgres (host migration, optional but recommended)
+## Postgres (optional index)
 
 Partial index for active rules:
 

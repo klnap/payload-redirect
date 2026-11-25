@@ -22,12 +22,12 @@ describe.skipIf(!intDatabaseConfigured)('concurrent duplicate from', () => {
     const results = await Promise.allSettled([
       handle.payload.create({
         collection: 'redirects',
-        data: { from: '/race', to: '/a', StatusCode: 301, enabled: true },
+        data: { from: '/race', to: '/a', statusCode: 301, enabled: true },
         overrideAccess: true,
       }),
       handle.payload.create({
         collection: 'redirects',
-        data: { from: '/race', to: '/b', StatusCode: 301, enabled: true },
+        data: { from: '/race', to: '/b', statusCode: 301, enabled: true },
         overrideAccess: true,
       }),
     ])

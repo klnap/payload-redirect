@@ -20,8 +20,7 @@ describe.skipIf(!intDatabaseConfigured)('plugin registration', () => {
   })
 
   it('registers redirects collection with runtime slug', async () => {
-    const custom = handle.payload.config.custom as { payloadRedirect?: { collectionSlug: string } }
-    expect(custom.payloadRedirect?.collectionSlug).toBe('redirects')
+    expect(handle.payload.config.collections.some(({ slug }) => slug === 'redirects')).toBe(true)
     const found = await handle.payload.find({
       collection: 'redirects',
       limit: 1,

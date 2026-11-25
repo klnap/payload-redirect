@@ -3,12 +3,12 @@ import { isIdenticalAutoRule } from '#redirect/core/redirects/auto/match-existin
 import { REDIRECT_CONTEXT_KEYS } from '#redirect/core/redirects/context-keys'
 import { findRedirectByFrom, type RedirectLookupDoc } from '#redirect/core/redirects/queries'
 
-export type AutoRedirectRule = {
+type AutoRedirectRule = {
   from: string
   to: string
 }
 
-export type EnsureAutoRedirectArgs = {
+type EnsureAutoRedirectArgs = {
   req: PayloadRequest
   collectionSlug: string
   rule: AutoRedirectRule
@@ -33,7 +33,7 @@ export const ensureAutoRedirect = async ({
   const data = {
     from: rule.from,
     to: rule.to,
-    StatusCode: '301',
+    statusCode: '301',
     enabled: true,
     origin: 'auto' as const,
   }
@@ -61,7 +61,7 @@ export const ensureAutoRedirect = async ({
         id: doc.id,
         data: {
           to: rule.to,
-          StatusCode: '301',
+          statusCode: '301',
           enabled: true,
         },
         context: internalContext,

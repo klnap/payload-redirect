@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/exports/index.ts",
+    "src/**/*.test.ts",
+    "tests/**/*.test.ts",
+    "scripts/*.mjs",
+    "type-fixture/**/*.ts"
+  ],
+  "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.mjs", "type-fixture/**/*.ts"],
+  "ignoreDependencies": ["@swc/core"]
+}

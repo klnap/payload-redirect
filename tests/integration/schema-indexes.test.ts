@@ -49,9 +49,9 @@ describe.skipIf(!intDatabaseConfigured)('redirects table indexes', () => {
     const redirectsCol = handle.payload.config.collections?.find((c) => c.slug === 'redirects')
     const names =
       redirectsCol?.fields?.map((f) => ('name' in f ? f.name : '')).filter(Boolean) ?? []
-    expect(names).toEqual(expect.arrayContaining(['from', 'to', 'StatusCode', 'enabled', 'origin']))
+    expect(names).toEqual(expect.arrayContaining(['from', 'to', 'statusCode', 'enabled', 'origin']))
     expect(
-      names.filter((n) => ['from', 'to', 'StatusCode', 'enabled', 'origin'].includes(n))
-    ).toEqual(['from', 'to', 'StatusCode', 'enabled', 'origin'])
+      names.filter((n) => ['from', 'to', 'statusCode', 'enabled', 'origin'].includes(n))
+    ).toEqual(['from', 'to', 'statusCode', 'enabled', 'origin'])
   })
 })

@@ -20,14 +20,14 @@ describe.skipIf(!intDatabaseConfigured)('duplicate active from', () => {
     await handle.resetRedirects()
     await handle.payload.create({
       collection: 'redirects',
-      data: { from: '/dup', to: '/a', StatusCode: 301, enabled: true },
+      data: { from: '/dup', to: '/a', statusCode: 301, enabled: true },
       overrideAccess: true,
     })
 
     await expect(
       handle.payload.create({
         collection: 'redirects',
-        data: { from: '/dup', to: '/b', StatusCode: 301, enabled: true },
+        data: { from: '/dup', to: '/b', statusCode: 301, enabled: true },
         overrideAccess: true,
       })
     ).rejects.toThrow()
@@ -37,7 +37,7 @@ describe.skipIf(!intDatabaseConfigured)('duplicate active from', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'redirects',
-      data: { from: '/matrix-from', to: '/target-a', StatusCode: 301, enabled: true },
+      data: { from: '/matrix-from', to: '/target-a', statusCode: 301, enabled: true },
       overrideAccess: true,
     })
 

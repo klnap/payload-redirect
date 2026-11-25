@@ -24,10 +24,10 @@ describe.skipIf(!intDatabaseConfigured)('version history', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/a', title: 'A', _status: 'published' },
+      data: { slug: 'a', title: 'A', _status: 'published' },
     })
 
-    for (const slug of ['/b', '/c', '/d', '/e']) {
+    for (const slug of ['b', 'c', 'd', 'e']) {
       await handle.payload.update({
         collection: 'articles',
         id: created.id,
@@ -39,7 +39,7 @@ describe.skipIf(!intDatabaseConfigured)('version history', () => {
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/e', _status: 'published' },
+      data: { slug: 'e', _status: 'published' },
     })
 
     const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })

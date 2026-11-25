@@ -24,7 +24,7 @@ describe.skipIf(!intDatabaseConfigured)('slug publication redirects', () => {
     await handle.resetRedirects()
     await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/a', title: 'A' },
+      data: { slug: 'a', title: 'A' },
       draft: true,
     })
     const doc = await handle.payload.find({
@@ -48,13 +48,13 @@ describe.skipIf(!intDatabaseConfigured)('slug publication redirects', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/a', title: 'A', _status: 'published' },
+      data: { slug: 'a', title: 'A', _status: 'published' },
     })
 
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/b' },
+      data: { slug: 'b' },
       draft: true,
     })
 
@@ -68,6 +68,6 @@ describe.skipIf(!intDatabaseConfigured)('slug publication redirects', () => {
     expect(redirects.totalDocs).toBe(1)
     expect(redirects.docs[0]?.from).toBe('/a')
     expect(redirects.docs[0]?.to).toBe('/b')
-    expect(redirects.docs[0]?.StatusCode).toBe('301')
+    expect(redirects.docs[0]?.statusCode).toBe('301')
   })
 })

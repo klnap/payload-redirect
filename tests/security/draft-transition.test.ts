@@ -24,13 +24,13 @@ describe.skipIf(!intDatabaseConfigured)('draft rename', () => {
     await handle.resetRedirects()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/a', title: 'A', _status: 'published' },
+      data: { slug: 'a', title: 'A', _status: 'published' },
     })
 
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/b' },
+      data: { slug: 'b' },
       draft: true,
       ...withDraftQuery,
     })

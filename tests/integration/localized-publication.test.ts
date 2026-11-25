@@ -26,7 +26,7 @@ describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
     await handle.resetArticles()
     const created = await handle.payload.create({
       collection: 'articles',
-      data: { slug: '/pl-old', title: 'A' },
+      data: { slug: 'pl-old', title: 'A' },
       locale: 'pl',
       draft: true,
     })
@@ -34,14 +34,14 @@ describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/pl-old' },
+      data: { slug: 'pl-old' },
       locale: 'en',
       draft: true,
     })
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/de-alt' },
+      data: { slug: 'de-alt' },
       locale: 'de',
       draft: true,
     })
@@ -56,21 +56,21 @@ describe.skipIf(!intDatabaseConfigured)('localized publication', () => {
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/pl-new' },
+      data: { slug: 'pl-new' },
       locale: 'pl',
       draft: true,
     })
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/en-old' },
+      data: { slug: 'en-old' },
       locale: 'en',
       draft: true,
     })
     await handle.payload.update({
       collection: 'articles',
       id: created.id,
-      data: { slug: '/de-neu' },
+      data: { slug: 'de-neu' },
       locale: 'de',
       draft: true,
     })

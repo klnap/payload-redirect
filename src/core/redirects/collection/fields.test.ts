@@ -9,7 +9,7 @@ describe('redirect fields', () => {
   const names = fields.map((f) => ('name' in f ? f.name : ''))
 
   it('includes plugin-owned fields', () => {
-    expect(names).toEqual(['from', 'to', 'StatusCode', 'enabled', 'origin'])
+    expect(names).toEqual(['from', 'to', 'statusCode', 'enabled', 'origin'])
   })
 
   it('from is unique (Payload postgres adapter creates a unique btree; separate index: true is redundant)', () => {
@@ -19,7 +19,7 @@ describe('redirect fields', () => {
   })
 
   it('plugin fields allow public read (sort/where under fail-closed field access hosts)', () => {
-    for (const name of ['from', 'to', 'StatusCode', 'enabled', 'origin'] as const) {
+    for (const name of ['from', 'to', 'statusCode', 'enabled', 'origin'] as const) {
       const field = fields.find((f) => 'name' in f && f.name === name)
       expect(field && 'access' in field ? field.access?.read?.({} as never) : undefined).toBe(true)
     }
@@ -30,8 +30,8 @@ describe('redirect fields', () => {
     expect(enabled && 'index' in enabled ? enabled.index : undefined).toBe(true)
   })
 
-  it('StatusCode is a Type select (301/302 stored as strings)', () => {
-    const status = fields.find((f) => 'name' in f && f.name === 'StatusCode')
+  it('statusCode is a Type select (301/302 stored as strings)', () => {
+    const status = fields.find((f) => 'name' in f && f.name === 'statusCode')
     expect(status && 'type' in status ? status.type : undefined).toBe('select')
     expect(status && 'label' in status ? status.label : undefined).toBe('Type')
     expect(status && 'defaultValue' in status ? status.defaultValue : undefined).toBe('301')
@@ -80,20 +80,20 @@ describe('redirect fields', () => {
     ) as
       | ((value: unknown, ctx: { siblingData: Record<string, unknown> }) => string | true)
       | undefined
-    expect(validate?.('/target', { siblingData: { StatusCode: '301' } })).toBe(true)
-    expect(validate?.('/oferta.html', { siblingData: { StatusCode: '301' } })).toBe(true)
-    expect(validate?.('https://example.com', { siblingData: { StatusCode: '301' } })).toMatch(
+    expect(validate?.('/target', { siblingData: { statusCode: '301' } })).toBe(true)
+    expect(validate?.('/oferta.html', { siblingData: { statusCode: '301' } })).toBe(true)
+    expect(validate?.('https://example.com', { siblingData: { statusCode: '301' } })).toMatch(
       /site-relative/
     )
-    expect(validate?.('', { siblingData: { StatusCode: '301' } })).toMatch(/non-empty/i)
-    expect(validate?.('/target', { siblingData: { StatusCode: '307' } })).toMatch(/status/i)
-    expect(validate?.('http://[invalid', { siblingData: { StatusCode: '301' } })).toMatch(
+    expect(validate?.('', { siblingData: { statusCode: '301' } })).toMatch(/non-empty/i)
+    expect(validate?.('/target', { siblingData: { statusCode: '307' } })).toMatch(/status/i)
+    expect(validate?.('http://[invalid', { siblingData: { statusCode: '301' } })).toMatch(
       /site-relative/i
     )
-    expect(validate?.('/same', { siblingData: { StatusCode: '301', from: '/same/' } })).toMatch(
+    expect(validate?.('/same', { siblingData: { statusCode: '301', from: '/same/' } })).toMatch(
       /differ/
     )
-    expect(validate?.('/target', { siblingData: { StatusCode: '301', from: '/same' } })).toBe(true)
+    expect(validate?.('/target', { siblingData: { statusCode: '301', from: '/same' } })).toBe(true)
   })
 })
 
@@ -107,7 +107,7 @@ describe('mergeRedirectFields', () => {
     expect(merged.map((f) => ('name' in f ? f.name : ''))).toEqual([
       'from',
       'to',
-      'StatusCode',
+      'statusCode',
       'enabled',
       'origin',
       'description',
@@ -117,7 +117,7 @@ describe('mergeRedirectFields', () => {
   it('uses host override at the plugin field position', () => {
     const merged = mergeRedirectFields([
       {
-        name: 'StatusCode',
+        name: 'statusCode',
         type: 'select',
         options: [
           { label: 'Permanent', value: '301' },
@@ -127,7 +127,7 @@ describe('mergeRedirectFields', () => {
       },
     ])
 
-    const status = merged.find((f) => 'name' in f && f.name === 'StatusCode')
+    const status = merged.find((f) => 'name' in f && f.name === 'statusCode')
     expect(
       status && 'admin' in status
         ? (status.admin as { description?: string })?.description
@@ -141,7 +141,7 @@ describe('mergeRedirectFields', () => {
     const merged = mergeRedirectFields([
       { name: 'from', type: 'text', unique: true },
       { name: 'to', type: 'text' },
-      { name: 'StatusCode', type: 'select', options: ['301', '302', '307'] },
+      { name: 'statusCode', type: 'select', options: ['301', '302', '307'] },
     ])
     const validate = (name: string) => {
       const field = merged.find((item) => 'name' in item && item.name === name)
@@ -157,10 +157,10 @@ describe('mergeRedirectFields', () => {
       /site-relative/
     )
     expect(
-      await validate('to')?.('javascript:alert(1)', { siblingData: { StatusCode: '301' } } as never)
+      await validate('to')?.('javascript:alert(1)', { siblingData: { statusCode: '301' } } as never)
     ).toMatch(/site-relative/)
-    expect(await validate('StatusCode')?.('307', { siblingData: {} } as never)).toMatch(
-      /StatusCode/
+    expect(await validate('statusCode')?.('307', { siblingData: {} } as never)).toMatch(
+      /statusCode/
     )
   })
 

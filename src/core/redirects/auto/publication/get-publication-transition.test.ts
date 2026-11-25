@@ -1,90 +1,134 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { REDIRECT_CONTEXT_KEYS } from '#redirect/core/redirects/context-keys'
 import { getPublicationTransition } from './get-publication-transition'
 
-const args = ({
-  collection = { slug: 'pages', fields: [{ name: 'slug' }], versions: { drafts: true } },
-  doc = { id: 'id', slug: 'new', _status: 'published' },
-  data = { _status: 'published' },
+const makeArgs = ({
+  collection = { slug: 'pages', fields: [], versions: { drafts: true } },
+  doc = { id: 'page-1', _status: 'published' },
   query = { locale: 'en' },
   context = {},
+  locale = 'en',
   locales = ['en'],
+  currentDoc = { id: 'page-1', _status: 'published' },
+  versions = [{ version: { _status: 'published' } }],
 }: {
   collection?: Record<string, unknown>
   doc?: Record<string, unknown>
-  data?: Record<string, unknown>
   query?: Record<string, unknown>
   context?: Record<string, unknown>
+  locale?: string | null
   locales?: string[]
+  currentDoc?: Record<string, unknown>
+  versions?: Record<string, unknown>[]
 } = {}) => {
-  const findByID = mock(async () => undefined)
-  const findVersions = mock(async () => ({ docs: [], hasNextPage: false }))
+  const findByID = mock(async (_args: unknown) => currentDoc)
+  const findVersions = mock(async (_args: unknown) => ({ docs: versions, hasNextPage: false }))
+  const req = {
+    context,
+    query,
+    locale,
+    payload: {
+      config: { localization: locales.length ? { locales, defaultLocale: locales[0] } : false },
+      findByID,
+      findVersions,
+    },
+  }
   return {
-    args: {
-      req: {
-        context,
-        query,
-        payload: {
-          config: { localization: { locales, defaultLocale: locales[0] } },
-          findByID,
-          findVersions,
-        },
-      },
-      collection,
-      doc,
-      data,
-    } as never,
+    args: { req, collection, doc, data: {} },
+    findByID,
     findVersions,
   }
 }
 
 describe('getPublicationTransition', () => {
-  it('skips non-versioned collections, draft saves, context skips, and unpublished documents', async () => {
-    const noVersions = args({ collection: { slug: 'pages', fields: [] } })
-    expect(await getPublicationTransition(noVersions.args, { identifier: 'slug' })).toEqual([])
+  it('skips non-versioned collections, draft saves, and internal writes', async () => {
+    const noVersions = makeArgs({ collection: { slug: 'pages', fields: [] } })
+    expect(await getPublicationTransition(noVersions.args as never)).toEqual([])
 
-    const draftSave = args({ query: { locale: 'en', draft: true } })
-    expect(await getPublicationTransition(draftSave.args, { identifier: 'slug' })).toEqual([])
+    const draftSave = makeArgs({ query: { locale: 'en', draft: true } })
+    expect(await getPublicationTransition(draftSave.args as never)).toEqual([])
 
-    const contextSkip = args({ context: { payloadRedirectSkipAuto: true } })
-    expect(await getPublicationTransition(contextSkip.args, { identifier: 'slug' })).toEqual([])
-
-    const unpublished = args({ doc: { id: 'id', slug: 'draft', _status: 'draft' } })
-    expect(await getPublicationTransition(unpublished.args, { identifier: 'slug' })).toEqual([])
+    const internalWrite = makeArgs({ context: { [REDIRECT_CONTEXT_KEYS.skipAuto]: true } })
+    expect(await getPublicationTransition(internalWrite.args as never)).toEqual([])
+    expect(internalWrite.findByID).not.toHaveBeenCalled()
   })
 
-  it('uses published locales inferred from localized status when request locale is absent', async () => {
-    const ctx = args({
-      collection: {
-        slug: 'pages',
-        fields: [{ name: 'slug', localized: true }],
-        versions: { drafts: { localizeStatus: true } },
+  it('returns locale-specific published snapshots without fallback locales', async () => {
+    const ctx = makeArgs({
+      currentDoc: { id: 'page-1', slug: 'current', _status: 'published' },
+      versions: [
+        { version: { slug: 'current', _status: 'published' } },
+        { version: { slug: 'previous', _status: 'published' } },
+      ],
+    })
+
+    expect(await getPublicationTransition(ctx.args as never)).toEqual([
+      {
+        locale: 'en',
+        currentDoc: { id: 'page-1', slug: 'current', _status: 'published' },
+        publishedDocs: [
+          { slug: 'current', _status: 'published' },
+          { slug: 'previous', _status: 'published' },
+        ],
       },
-      doc: { id: 'id', slug: { en: 'new' }, _status: { en: 'published', fr: 'draft' } },
-      data: { _status: { en: 'draft' } },
+    ])
+    expect(ctx.findByID.mock.calls[0]?.[0]).toMatchObject({
+      locale: 'en',
+      fallbackLocale: false,
+    })
+    expect(ctx.findVersions.mock.calls[0]?.[0]).toMatchObject({
+      locale: 'en',
+      fallbackLocale: false,
+    })
+  })
+
+  it('processes only published locales for localized status', async () => {
+    const ctx = makeArgs({
+      locale: null,
       query: {},
       locales: ['en', 'fr'],
+      collection: { slug: 'pages', fields: [], versions: { drafts: { localizeStatus: true } } },
+      doc: { id: 'page-1', _status: { en: 'published', fr: 'draft' } },
+      currentDoc: { id: 'page-1', _status: { en: 'published', fr: 'draft' } },
     })
 
-    const transitions = await getPublicationTransition(ctx.args, { identifier: 'slug' })
-    expect(transitions).toEqual([{ published: true }])
+    const transitions = await getPublicationTransition(ctx.args as never)
+    expect(transitions.map(({ locale }) => locale)).toEqual(['en'])
+    expect(ctx.findByID).toHaveBeenCalledTimes(1)
     expect(ctx.findVersions).toHaveBeenCalledTimes(1)
+    expect(ctx.findVersions.mock.calls[0]?.[0]).toMatchObject({ locale: 'en' })
   })
-
-  it('accepts publishAllLocales when configured locales are available', async () => {
-    const ctx = args({
-      query: { publishAllLocales: true },
-      locales: ['en', 'fr'],
+  it('accepts the published snapshot returned for a localized locale', async () => {
+    const ctx = makeArgs({
+      locale: null,
+      query: {},
+      locales: ['en', 'pl'],
+      collection: { slug: 'pages', fields: [], versions: { drafts: { localizeStatus: true } } },
+      doc: { id: 'page-1', _status: { en: 'published', pl: 'draft' } },
+      currentDoc: { id: 'page-1', _status: 'published' },
     })
-    expect(await getPublicationTransition(ctx.args, { identifier: 'slug' })).toEqual([
-      { published: true },
-      { published: true },
-    ])
-    expect(ctx.findVersions).toHaveBeenCalledTimes(2)
+    expect(await getPublicationTransition(ctx.args as never)).toHaveLength(1)
   })
 
-  it('returns no transitions when publishing all locales without configured locales', async () => {
-    const ctx = args({ query: { publishAllLocales: true }, locales: [] })
-    expect(await getPublicationTransition(ctx.args, { identifier: 'slug' })).toEqual([])
+  it('handles non-localized Payload configs without inventing a locale', async () => {
+    const ctx = makeArgs({
+      locale: null,
+      query: {},
+      locales: [],
+      currentDoc: { id: 'page-1', slug: 'current', _status: 'published' },
+    })
+
+    expect(await getPublicationTransition(ctx.args as never)).toHaveLength(1)
+    expect(ctx.findByID.mock.calls[0]?.[0]).not.toHaveProperty('locale')
+    expect(ctx.findVersions.mock.calls[0]?.[0]).not.toHaveProperty('locale')
+  })
+
+  it('does not read history for unpublished documents', async () => {
+    const ctx = makeArgs({
+      currentDoc: { id: 'page-1', _status: 'draft' },
+    })
+
+    expect(await getPublicationTransition(ctx.args as never)).toEqual([])
     expect(ctx.findVersions).not.toHaveBeenCalled()
   })
 })

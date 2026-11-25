@@ -1,46 +1,47 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
-import { isIdentifierPathLocalized } from '#redirect/core/redirects/identifier-field-path'
+import type { PayloadRequest } from 'payload'
 
-export const listLocales = (req: PayloadRequest): string[] => {
+const listLocales = (req: PayloadRequest): string[] => {
   const localization = req.payload.config.localization
-  if (!localization) return []
-  return localization.locales.map((l) => (typeof l === 'string' ? l : l.code))
+  if (localization === false || !localization) return []
+  return localization.locales.map((locale) => (typeof locale === 'string' ? locale : locale.code))
 }
 
-export const getRequestLocales = (req: PayloadRequest): string[] => {
-  if (req.query?.publishAllLocales === 'true' || req.query?.publishAllLocales === true) {
-    return listLocales(req)
-  }
-  const locale =
+export const getRequestLocales = (
+  req: PayloadRequest,
+  status: unknown
+): Array<string | undefined> => {
+  const localization = listLocales(req)
+  if (localization.length === 0) return [undefined]
+
+  const requested =
     (typeof req.query?.publishSpecificLocale === 'string' && req.query.publishSpecificLocale) ||
     (typeof req.query?.locale === 'string' && req.query.locale) ||
     (typeof req.locale === 'string' ? req.locale : undefined)
-  if (locale && locale !== 'all') return [locale]
+  if (requested && requested !== 'all') return [requested]
 
-  const all = listLocales(req)
-  if (all.length === 0) return ['en']
+  if (req.query?.publishAllLocales === 'true' || req.query?.publishAllLocales === true) {
+    return localization
+  }
 
-  return []
+  if (status && typeof status === 'object' && !Array.isArray(status)) {
+    return Object.entries(status as Record<string, unknown>)
+      .filter(([, value]) => value === 'published')
+      .map(([locale]) => locale)
+  }
+
+  return status === 'published' ? localization : []
 }
 
-export const hasLocalizedDraftStatus = (collection: CollectionConfig): boolean => {
-  const versions = collection.versions
-  if (!versions || typeof versions !== 'object' || !('drafts' in versions)) return false
-  const drafts = versions.drafts
-  return typeof drafts === 'object' && drafts !== null && drafts.localizeStatus === true
-}
-
-export const isIdentifierLocalized = (
-  collection: CollectionConfig,
-  identifier: string
-): boolean => {
-  return isIdentifierPathLocalized(collection.fields, identifier)
+export const hasLocalizedDraftStatus = (collection: {
+  versions?: { drafts?: unknown } | false
+}): boolean => {
+  const drafts = collection.versions === false ? undefined : collection.versions?.drafts
+  return Boolean(
+    drafts && typeof drafts === 'object' && 'localizeStatus' in drafts && drafts.localizeStatus
+  )
 }
 
 export const resolveDefaultLocale = (req: PayloadRequest): string | undefined => {
   const localization = req.payload.config.localization
-  if (typeof localization === 'object' && localization && 'defaultLocale' in localization) {
-    return String(localization.defaultLocale)
-  }
-  return undefined
+  return localization ? localization.defaultLocale : undefined
 }

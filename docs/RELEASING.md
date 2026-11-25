@@ -1,41 +1,14 @@
 # Releasing
 
-The first staged release uses package version `0.1.0`. npm creates the public
-`0.0.0-stage` placeholder when the first package is staged; the package contents
-stay private until a maintainer approves the staged release with 2FA.
+This repository uses the tag-triggered GitHub Actions workflow in
+`.github/workflows/release.yml`. No Changesets configuration is present.
 
-## One-time setup
+1. Update `package.json` and `CHANGELOG.md` on a pull-request branch.
+2. Merge the pull request to `main` after required checks pass.
+3. Push the matching `v<version>` tag from the merged commit.
+4. Wait for release validation and publication to complete.
+5. Create the GitHub release for that tag with the changelog entry.
 
-1. Create the public GitHub repository `klnap/payload-redirect` and push `main`.
-2. From the package root, run `npm stage publish` while logged in to npm. This
-   bootstraps the package entry and stages the `0.1.0` contents.
-3. Configure the npm trusted publisher:
-   - Provider: GitHub Actions
-   - Organization/user: `klnap`
-   - Repository: `payload-redirect`
-   - Workflow filename: `release.yml`
-   - Environment: `npm`
-   - Allow `npm publish`; do not enable dist-tag changes.
-4. Create the GitHub environment named `npm`.
-
-The release workflow needs no npm token. npm grants it short-lived OIDC
-publishing access and generates provenance. Stage approval remains a separate
-maintainer action and requires 2FA.
-
-## Publish the initial release
-
-Review and approve the staged `0.1.0` package on npmjs.com or with
-`npm stage approve <stage-id>`. npm exposes a `0.0.0-stage` placeholder while
-the package is staged. After approval, push the matching release tag:
-
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The workflow validates the tagged package and skips publishing if `0.1.0` is
-already on npm. Later versions are validated and published by the same OIDC
-workflow.
-
-For later releases, update `package.json`, validate the change, and push a matching
-`v<version>` tag from `main`.
+The workflow verifies that the tag matches `package.json` and points to a commit on `main`. It
+publishes the validated tarball through npm Trusted Publishing with OIDC and provenance. The npm
+environment must retain its required maintainer approval.
