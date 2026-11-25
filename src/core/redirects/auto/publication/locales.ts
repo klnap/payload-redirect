@@ -15,13 +15,18 @@ export const getRequestLocales = (
 
   const requested =
     (typeof req.query?.publishSpecificLocale === 'string' && req.query.publishSpecificLocale) ||
-    (typeof req.query?.locale === 'string' && req.query.locale) ||
-    (typeof req.locale === 'string' ? req.locale : undefined)
+    (typeof req.query?.locale === 'string' && req.query.locale)
   if (requested && requested !== 'all') return [requested]
 
-  if (req.query?.publishAllLocales === 'true' || req.query?.publishAllLocales === true) {
+  if (
+    requested === 'all' ||
+    req.query?.publishAllLocales === 'true' ||
+    req.query?.publishAllLocales === true
+  ) {
     return localization
   }
+
+  if (typeof req.locale === 'string') return [req.locale]
 
   if (status && typeof status === 'object' && !Array.isArray(status)) {
     return Object.entries(status as Record<string, unknown>)
