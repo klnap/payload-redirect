@@ -1,15 +1,15 @@
-import type { Payload } from 'payload'
-import type { RedirectStatusCode } from '#redirect/core/redirects/model/status-code'
+import type { Payload } from "payload";
+import type { RedirectStatusCode } from "#redirect/core/redirects/model/status-code";
 
 export const createManualRedirect = async (
   payload: Payload,
   data: {
-    from: string
-    to?: string
-    statusCode?: RedirectStatusCode
-    enabled?: boolean
+    from: string;
+    to?: string;
+    statusCode?: RedirectStatusCode;
+    enabled?: boolean;
   },
-  collection = 'redirects'
+  collection = "redirects",
 ) => {
   return payload.create({
     collection,
@@ -19,5 +19,5 @@ export const createManualRedirect = async (
       ...data,
     },
     overrideAccess: true,
-  })
-}
+  });
+};

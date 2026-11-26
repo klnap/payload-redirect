@@ -6,18 +6,18 @@
       "@klnap/payload-redirect": ["./src/exports/index.ts"]
     },
     "target": "ES2022",
-    "lib": ["ES2023"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["bun"]
+    "types": ["bun-types"]
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]

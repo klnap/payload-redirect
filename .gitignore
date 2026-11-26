@@ -10,7 +10,9 @@ playwright-report/
 blob-report/
 .cache/
 *.tsbuildinfo
-.env
-.env.*
+*.log
+*.tgz
+.env*
 !.env.example
 !.env.template
+.DS_Store

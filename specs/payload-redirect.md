@@ -34,8 +34,7 @@
 ## Verification
 
 ```sh
-bun run typecheck
-bun test src tests/unit
-bun run check:boundaries
-bun run check:release
+bun install --frozen-lockfile
+bun run check
+bun run test:int
 ```

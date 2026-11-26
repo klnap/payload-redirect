@@ -23,6 +23,7 @@
   },
   "type": "module",
   "sideEffects": false,
+  "packageManager": "bun@1.4.5",
   "exports": {
     ".": {
       "types": "./dist/exports/index.d.ts",
@@ -38,17 +39,20 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "typecheck:consumer": "bun run build && tsc -p tsconfig.type-fixture.json && tsc -p tsconfig.type-fixture.no-generated.json",
+    "typecheck:consumer": "tsc -p tsconfig.type-fixture.json && tsc -p tsconfig.type-fixture.no-generated.json",
     "test": "bun test src tests/unit",
     "test:int": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/integration tests/security --max-concurrency 1 --timeout=15000",
     "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
-    "lint": "biome check .",
-    "format": "biome format --write .",
-    "lint:oxlint": "oxlint --config .oxlintrc.json --deny-warnings --no-error-on-unmatched-pattern",
-    "check:release": "bun pm pack --dry-run && bun run check:exports",
-    "prepack": "bun run build",
+    "lint": "biome lint .",
+    "format": "biome format .",
+    "format:write": "biome format --write .",
+    "verify:package": "publint --strict && attw --profile esm-only --pack .",
+    "check": "bun run format && bun run lint && bun run check:boundaries && bun run typecheck && bun run test && bun run build && bun run typecheck:consumer && bun run verify:package && bun run check:exports",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:version-check": "bun run changeset:version && bun run check",
     "check:exports": "bun scripts/check-exports.mjs",
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
+    "build": "bun -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
   },
   "peerDependencies": {
     "@payloadcms/db-postgres": ">=3.94.1 <4",
@@ -60,14 +64,17 @@
     }
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@biomejs/biome": "2.6.8",
+    "@changesets/cli": "3.0.3",
     "@swc/core": "1.16.22",
     "@payloadcms/db-postgres": "3.94.1",
     "@payloadcms/richtext-lexical": "3.94.1",
-    "@types/bun": "^1.4.4",
+    "@types/bun": "1.4.5",
     "@types/pg": "^8.23.1",
-    "@biomejs/biome": "2.6.8",
-    "oxlint": "1.94.0",
     "dependency-cruiser": "^18.8.0",
+    "npm": "12.2.3",
+    "publint": "0.3.25",
     "payload": "3.94.1",
     "pg": "^8.23.1",
     "tsc-alias": "^1.9.10",
@@ -78,10 +85,11 @@
     "happy-dom": "21.0.4"
   },
   "engines": {
-    "node": "^24.22.3 || >=26.13.1"
+    "node": "^22.23.5 || ^24.22.3 || >=26.13.1"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "types": "./dist/exports/index.d.ts"
 }

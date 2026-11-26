@@ -1,65 +1,65 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   createRedirectIntPayload,
   draftVersions,
   intDatabaseConfigured,
   type RedirectIntHandle,
-} from '../helpers/payload-harness'
+} from "../helpers/payload-harness";
 
-describe.skipIf(!intDatabaseConfigured)('transactions', () => {
-  let handle: RedirectIntHandle
+describe.skipIf(!intDatabaseConfigured)("transactions", () => {
+  let handle: RedirectIntHandle;
 
   beforeAll(async () => {
     handle = await createRedirectIntPayload({
       collections: [
         {
-          slug: 'fail-publish',
+          slug: "fail-publish",
           versions: draftVersions,
-          fields: [{ name: 'slug', type: 'text', required: true }],
-          custom: { redirect: { path: '/[slug]' } },
+          fields: [{ name: "slug", type: "text", required: true }],
+          custom: { redirect: { path: "/[slug]" } },
           hooks: {
             afterChange: [
               async (args) => {
-                if (args.operation !== 'update') return args.doc
-                if (args.doc?._status !== 'published') return args.doc
-                throw new Error('simulated failure after redirect hook')
+                if (args.operation !== "update") return args.doc;
+                if (args.doc?._status !== "published") return args.doc;
+                throw new Error("simulated failure after redirect hook");
               },
             ],
           },
         },
       ],
-    })
-  }, 120_000)
+    });
+  }, 120_000);
 
   afterAll(async () => {
-    await handle.destroy()
-  })
+    await handle.destroy();
+  });
 
-  it('does not persist redirect when publication hook chain fails', async () => {
-    await handle.resetRedirects()
+  it("does not persist redirect when publication hook chain fails", async () => {
+    await handle.resetRedirects();
     const created = await handle.payload.create({
-      collection: 'fail-publish',
-      data: { slug: 'a', _status: 'published' },
-    })
+      collection: "fail-publish",
+      data: { slug: "a", _status: "published" },
+    });
 
     await expect(
       handle.payload.update({
-        collection: 'fail-publish',
+        collection: "fail-publish",
         id: created.id,
-        data: { slug: 'b' },
+        data: { slug: "b" },
         draft: true,
-      })
-    ).resolves.toBeDefined()
+      }),
+    ).resolves.toBeDefined();
 
     await expect(
       handle.payload.update({
-        collection: 'fail-publish',
+        collection: "fail-publish",
         id: created.id,
-        data: { _status: 'published' },
-      })
-    ).rejects.toThrow()
+        data: { _status: "published" },
+      }),
+    ).rejects.toThrow();
 
-    const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })
-    expect(redirects.totalDocs).toBe(0)
-  })
-})
+    const redirects = await handle.payload.find({ collection: "redirects", overrideAccess: true });
+    expect(redirects.totalDocs).toBe(0);
+  });
+});

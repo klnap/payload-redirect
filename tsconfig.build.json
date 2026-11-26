@@ -8,7 +8,9 @@
     "declarationMap": false,
     "outDir": "dist",
     "rootDir": "src",
-    "types": []
+    "types": [],
+    "sourceMap": true,
+    "inlineSources": true
   },
   "include": ["src/**/*"],
   "exclude": [

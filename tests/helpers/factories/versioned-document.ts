@@ -1,21 +1,21 @@
-import type { CollectionConfig } from 'payload'
-import { draftVersions, localizedDraftVersions } from '../payload-harness'
+import type { CollectionConfig } from "payload";
+import { draftVersions, localizedDraftVersions } from "../payload-harness";
 
 export const versionedArticlesCollection = (
   localized = false,
-  options?: { slugRequired?: boolean }
+  options?: { slugRequired?: boolean },
 ): CollectionConfig => ({
-  slug: 'articles',
+  slug: "articles",
   versions: localized ? localizedDraftVersions : draftVersions,
   fields: [
     {
-      name: 'slug',
-      type: 'text',
+      name: "slug",
+      type: "text",
       required: options?.slugRequired !== false,
       unique: false,
       ...(localized ? { localized: true } : {}),
     },
-    { name: 'title', type: 'text' },
+    { name: "title", type: "text" },
   ],
-  custom: { redirect: { path: '/[slug]' } },
-})
+  custom: { redirect: { path: "/[slug]" } },
+});

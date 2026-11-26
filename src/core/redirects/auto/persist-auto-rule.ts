@@ -1,19 +1,19 @@
-import type { PayloadRequest } from 'payload'
-import { isIdenticalAutoRule } from '#redirect/core/redirects/auto/match-existing-rule'
-import { REDIRECT_CONTEXT_KEYS } from '#redirect/core/redirects/context-keys'
-import { findRedirectByFrom, type RedirectLookupDoc } from '#redirect/core/redirects/queries'
+import type { PayloadRequest } from "payload";
+import { isIdenticalAutoRule } from "#redirect/core/redirects/auto/match-existing-rule";
+import { REDIRECT_CONTEXT_KEYS } from "#redirect/core/redirects/context-keys";
+import { findRedirectByFrom, type RedirectLookupDoc } from "#redirect/core/redirects/queries";
 
 type AutoRedirectRule = {
-  from: string
-  to: string
-}
+  from: string;
+  to: string;
+};
 
 type EnsureAutoRedirectArgs = {
-  req: PayloadRequest
-  collectionSlug: string
-  rule: AutoRedirectRule
-  context?: Record<string, unknown>
-}
+  req: PayloadRequest;
+  collectionSlug: string;
+  rule: AutoRedirectRule;
+  context?: Record<string, unknown>;
+};
 
 /**
  * Idempotent create for auto 301 rules. One lookup by unique `from`.
@@ -23,24 +23,24 @@ export const ensureAutoRedirect = async ({
   collectionSlug,
   rule,
   context,
-}: EnsureAutoRedirectArgs): Promise<'created' | 'skipped' | 'updated'> => {
+}: EnsureAutoRedirectArgs): Promise<"created" | "skipped" | "updated"> => {
   const internalContext = {
     ...context,
     [REDIRECT_CONTEXT_KEYS.internal]: true,
     [REDIRECT_CONTEXT_KEYS.skipAuto]: true,
-  }
+  };
 
   const data = {
     from: rule.from,
     to: rule.to,
-    statusCode: '301',
+    statusCode: "301",
     enabled: true,
-    origin: 'auto' as const,
-  }
+    origin: "auto" as const,
+  };
   const payload = req.payload as unknown as {
-    create: (args: Record<string, unknown>) => Promise<unknown>
-    update: (args: Record<string, unknown>) => Promise<unknown>
-  }
+    create: (args: Record<string, unknown>) => Promise<unknown>;
+    update: (args: Record<string, unknown>) => Promise<unknown>;
+  };
 
   const existing = await findRedirectByFrom(req.payload, {
     collectionSlug,
@@ -48,29 +48,29 @@ export const ensureAutoRedirect = async ({
     req,
     overrideAccess: false,
     context: internalContext,
-  })
+  });
 
-  const doc = existing.docs[0] as RedirectLookupDoc | undefined
+  const doc = existing.docs[0] as RedirectLookupDoc | undefined;
   if (doc) {
     if (isIdenticalAutoRule(doc, rule)) {
-      return 'skipped'
+      return "skipped";
     }
-    if (doc.origin === 'auto') {
+    if (doc.origin === "auto") {
       await payload.update({
         collection: collectionSlug,
         id: doc.id,
         data: {
           to: rule.to,
-          statusCode: '301',
+          statusCode: "301",
           enabled: true,
         },
         context: internalContext,
         overrideAccess: false,
         req,
-      })
-      return 'updated'
+      });
+      return "updated";
     }
-    return 'skipped'
+    return "skipped";
   }
 
   await payload.create({
@@ -79,7 +79,7 @@ export const ensureAutoRedirect = async ({
     context: internalContext,
     overrideAccess: false,
     req,
-  })
+  });
 
-  return 'created'
-}
+  return "created";
+};

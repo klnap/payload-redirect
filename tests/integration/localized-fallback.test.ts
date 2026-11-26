@@ -1,58 +1,58 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { versionedArticlesCollection } from '../helpers/factories/versioned-document'
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { versionedArticlesCollection } from "../helpers/factories/versioned-document";
 import {
   createRedirectIntPayload,
   intDatabaseConfigured,
   type RedirectIntHandle,
-} from '../helpers/payload-harness'
+} from "../helpers/payload-harness";
 
-describe.skipIf(!intDatabaseConfigured)('localized fallback regression', () => {
-  let handle: RedirectIntHandle
+describe.skipIf(!intDatabaseConfigured)("localized fallback regression", () => {
+  let handle: RedirectIntHandle;
 
   beforeAll(async () => {
     handle = await createRedirectIntPayload({
-      localization: { locales: ['pl', 'en'], defaultLocale: 'pl', fallback: true },
+      localization: { locales: ["pl", "en"], defaultLocale: "pl", fallback: true },
       collections: [versionedArticlesCollection(true)],
-    })
-  }, 120_000)
+    });
+  }, 120_000);
 
   afterAll(async () => {
-    await handle.destroy()
-  })
+    await handle.destroy();
+  });
 
-  it('does not create en redirect when only pl had prior publication', async () => {
-    await handle.resetRedirects()
+  it("does not create en redirect when only pl had prior publication", async () => {
+    await handle.resetRedirects();
 
     const created = await handle.payload.create({
-      collection: 'articles',
-      data: { slug: 'produkt', title: 'PL' },
-      locale: 'pl',
+      collection: "articles",
+      data: { slug: "produkt", title: "PL" },
+      locale: "pl",
       draft: true,
-    })
+    });
 
     await handle.payload.update({
-      collection: 'articles',
+      collection: "articles",
       id: created.id,
-      data: { _status: 'published' },
-      locale: 'pl',
-    })
+      data: { _status: "published" },
+      locale: "pl",
+    });
 
     await handle.payload.update({
-      collection: 'articles',
+      collection: "articles",
       id: created.id,
-      data: { slug: 'new-en' },
-      locale: 'en',
+      data: { slug: "new-en" },
+      locale: "en",
       draft: true,
-    })
+    });
 
     await handle.payload.update({
-      collection: 'articles',
+      collection: "articles",
       id: created.id,
-      data: { _status: 'published' },
-      locale: 'en',
-    })
+      data: { _status: "published" },
+      locale: "en",
+    });
 
-    const redirects = await handle.payload.find({ collection: 'redirects', overrideAccess: true })
-    expect(redirects.totalDocs).toBe(0)
-  })
-})
+    const redirects = await handle.payload.find({ collection: "redirects", overrideAccess: true });
+    expect(redirects.totalDocs).toBe(0);
+  });
+});
