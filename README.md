@@ -2,32 +2,26 @@
 
 Redirect management for Payload CMS.
 
-Automatically preserve existing URLs when published content paths change, including localized routes. Manage manual redirects alongside generated rules while keeping request handling in your application.
+Automatically preserve existing URLs when published content paths change, including localized routes. Manage manual redirects alongside generated rules.
 
-Inside an existing Payload config, with `articles` registered and using drafts:
+Configure automatic redirects for a collection named `articles`:
 
 ```ts
 import { redirects } from "@klnap/payload-redirect";
 
-plugins: [
-  redirects({
-    collections: {
-      articles: {
-        path: "/articles/[slug]",
-      },
+redirects({
+  collections: {
+    articles: {
+      path: "/articles/[slug]",
     },
-  }),
-],
+  },
+});
 ```
 
-If a published slug changes, the plugin creates:
+Register the returned plugin in your Payload config. Automatic generation requires the collection to use `versions.drafts`.
 
 ```text
-Previous published path: /articles/old-title
-Current published path:  /articles/new-title
-
-Generated redirect:
-301 /articles/old-title → /articles/new-title
+/articles/old-title → /articles/new-title (301)
 ```
 
 ## Why?
@@ -46,7 +40,6 @@ The plugin compares resolved paths from Payload's published versions. Because a 
 - Preserve manual rules when automatic generation reaches their source path.
 - Reject duplicate source paths and enabled redirect loops.
 - Customize the plugin-owned collection with Payload options and extra fields.
-- Keep request matching, responses, and caching in the host application.
 
 ## Installation
 
@@ -105,39 +98,28 @@ Placeholders accept non-empty strings and finite numbers. The plugin URL-encodes
 
 ### Localization
 
-The plugin uses Payload's existing content localization. Add these properties to your existing `buildConfig`; keep its other collections, database, and required config.
+The plugin uses Payload's existing content localization. Configure translated templates and locale prefixes:
 
 ```ts
-import type { RedirectCollectionOptions } from "@klnap/payload-redirect";
-import type { CollectionConfig } from "payload";
-
-const projectRedirect = {
-  paths: {
-    en: "/work/[slug]",
-    pl: "/realizacje/[slug]",
-    de: "/projekte/[slug]",
+redirects({
+  localePrefixes: {
+    en: "",
+    pl: "/pl",
+    de: "/de",
   },
-} satisfies RedirectCollectionOptions<"projects">;
-
-const Projects: CollectionConfig = {
-  slug: "projects",
-  versions: { drafts: true },
-  fields: [
-    { name: "title", type: "text", localized: true },
-    { name: "slug", type: "text", required: true, localized: true },
-    { name: "category", type: "text", required: true },
-  ],
-  custom: { redirect: projectRedirect },
-};
-
-localization: {
-  locales: ["en", "pl", "de"],
-  defaultLocale: "en",
-  fallback: true,
-},
-collections: [Projects],
-plugins: [redirects({ localePrefixes: { en: "", pl: "/pl", de: "/de" } })],
+  collections: {
+    projects: {
+      paths: {
+        en: "/work/[slug]",
+        pl: "/realizacje/[slug]",
+        de: "/projekte/[slug]",
+      },
+    },
+  },
+});
 ```
+
+Register the returned plugin in your Payload config, enable Payload localization, and localize the route fields. For collection-level configuration, see below.
 
 The resolved paths are:
 
@@ -205,11 +187,36 @@ The collection slug defaults to `redirects`. Set `overrides.slug` if that slug i
 
 ### Collection-level configuration
 
-The localized `Projects` collection above colocates route templates under `custom.redirect`. This pattern also accepts `path`, `getPath`, and `{ enabled: false }`.
+Put route configuration on the collection to keep it beside the schema:
+
+```ts
+import type { RedirectCollectionOptions } from "@klnap/payload-redirect";
+import type { CollectionConfig } from "payload";
+
+export const Projects: CollectionConfig = {
+  slug: "projects",
+  versions: { drafts: true },
+  fields: [
+    { name: "title", type: "text", localized: true },
+    { name: "slug", type: "text", required: true, localized: true },
+  ],
+  custom: {
+    redirect: {
+      paths: {
+        en: "/work/[slug]",
+        pl: "/realizacje/[slug]",
+        de: "/projekte/[slug]",
+      },
+    } satisfies RedirectCollectionOptions<"projects">,
+  },
+};
+```
+
+Import `redirects` from the package and register it once in your Payload config with `plugins: [redirects()]`. Enable Payload localization with the same `en`, `pl`, and `de` locales. This pattern also accepts `path`, `getPath`, and `{ enabled: false }`.
 
 Central `collections` configuration takes precedence and replaces `custom.redirect`; the two are not merged. Set `{ enabled: false }` centrally or on the collection to disable automatic generation while retaining manual redirects.
 
-Payload Globals are not supported. The plugin reads `custom.redirect` from collections and adds publication hooks only to collections; it does not configure Globals. No Global example is shown because the package has no Global integration API.
+Automatic redirect generation supports Collections only. Payload Globals are not supported.
 
 ### Collection overrides
 
@@ -252,7 +259,20 @@ async function findRedirect(payload: Payload, canonicalFrom: string) {
 
 Replace `"redirects"` if you set `overrides.slug`. Payload Local API defaults to `overrideAccess: true`; setting it to `false` enforces collection read access. Reads are public by default unless you override them.
 
-The application owns request matching, source canonicalization, query-string policy, HTTP responses, and cache invalidation. Rule writes normalize stored paths; lookup values are not normalized by the plugin. Matching is exact and case-sensitive.
+Run the redirect in your request handler:
+
+```ts
+const rule = await findRedirect(payload, canonicalFrom);
+
+if (rule) {
+  return Response.redirect(
+    new URL(rule.to, request.url),
+    Number(rule.statusCode),
+  );
+}
+```
+
+Your request handler must canonicalize source paths and choose a query-string policy. Rule writes normalize stored paths; lookup values are not normalized by the plugin. Matching is exact and case-sensitive.
 
 | Input path       | Stored path     | Write-time normalization                                            |
 | ---------------- | --------------- | ------------------------------------------------------------------- |
@@ -272,7 +292,6 @@ For example, `new URL(request.url).pathname` preserves repeated and trailing sla
 | ------------ | ------------------------------------- | -------------------------------------------------------------------------------------- |
 | Central      | `redirects({ collections: { ... } })` | One plugin option for registered collection slugs; takes precedence over local config. |
 | Entity-level | `CollectionConfig.custom.redirect`    | Colocates the route with its collection and applies when no central entry exists.      |
-| Global       | —                                     | Not supported; global hooks and `custom.redirect` are not read by the plugin.          |
 
 ### Plugin options
 
@@ -284,7 +303,7 @@ For example, `new URL(request.url).pathname` preserves repeated and trailing sla
 
 ### Collection options
 
-Configure these centrally under `collections` or on a collection under `custom.redirect`. Globals are not supported.
+Configure these centrally under `collections` or on a collection under `custom.redirect`.
 
 | Option    | Behavior                                                                                      |
 | --------- | --------------------------------------------------------------------------------------------- |
@@ -317,17 +336,17 @@ The package exports `redirects`, `RedirectsOptions`, `RedirectCollectionOptions<
 
 ## Compatibility
 
-| Requirement                  | Support and limits                                                                                                                                             |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node.js                      | `^22.23.5`, `^24.22.3`, or `>=26.13.1`.                                                                                                                        |
-| Payload                      | `>=3.94.1 <4`.                                                                                                                                                 |
-| PostgreSQL                   | Optional `@payloadcms/db-postgres` peer, `>=3.94.1 <4`; graph writes require an active Payload transaction at `READ COMMITTED`.                                |
-| Other database adapters      | No equivalent concurrency guarantee is claimed; atomic graph validation is not verified.                                                                       |
-| Automatic redirects          | Require `versions.drafts` on each configured collection.                                                                                                       |
-| Content localization         | Uses Payload locale configuration and resolves each locale without fallback.                                                                                   |
-| Localized publication status | Payload's `experimental.localizeStatus` is experimental. This package has basic integration coverage, not comprehensive per-locale publish/unpublish coverage. |
-| Admin translations           | Payload Admin i18n is separate; plugin labels and validation messages are not translated by the package.                                                       |
-| Frontend framework           | Framework-independent rule storage; request matching and responses remain application-owned.                                                                   |
+| Requirement                  | Support and limits                                                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js                      | `^22.23.5`, `^24.22.3`, or `>=26.13.1`.                                                                                                                                                         |
+| Payload                      | `>=3.94.1 <4`.                                                                                                                                                                                  |
+| PostgreSQL                   | Optional `@payloadcms/db-postgres` peer, `>=3.94.1 <4`; graph writes require an active Payload transaction at `READ COMMITTED`.                                                                 |
+| Other database adapters      | No equivalent concurrency guarantee is claimed; atomic graph validation is not verified.                                                                                                        |
+| Automatic redirects          | Require `versions.drafts` on each configured collection.                                                                                                                                        |
+| Content localization         | Uses Payload locale configuration and resolves each locale without fallback.                                                                                                                    |
+| Localized publication status | Opt-in requires both `experimental.localizeStatus: true` and `versions.drafts.localizeStatus: true`. Payload marks this feature experimental; this package has basic integration coverage only. |
+| Admin translations           | Payload Admin i18n is separate; plugin labels and validation messages are not translated by the package.                                                                                        |
+| Frontend framework           | Framework-independent rule storage.                                                                                                                                                             |
 
 ## Documentation
 
