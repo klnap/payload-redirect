@@ -16,6 +16,7 @@ This document records observable configuration, validation, and publication beha
 | Path config has unsupported options or multiple strategies | Plugin configuration throws before Payload builds.                                              |
 | Locale map omits or adds a Payload locale                  | Plugin configuration throws and names invalid locales.                                          |
 | Automatic generation is disabled                           | No automatic hook is added; manual rules remain available.                                      |
+| A Global defines `custom.redirect`                         | The plugin does not read Global configuration or add Global hooks.                              |
 
 ## Redirect collection writes
 
@@ -50,8 +51,21 @@ Automatic rules use one of `path`, `paths`, or `getPath`, configured centrally o
 | Locale is missing from a configured prefix map              | Plugin configuration fails before Payload builds.                             |
 | Generated source and destination normalize to the same path | No redirect is written.                                                       |
 
-Draft saves, first publications, unpublishes, deletions, and unchanged complete paths do not create
-automatic rules.
+Draft saves, first publications, unpublishes, and deletions create no automatic rules. Existing
+redirects remain when a document is unpublished or deleted.
+
+On an unchanged republish, an enabled identical automatic rule is left alone. A missing rule is
+recreated, and a disabled automatic rule is re-enabled, when an earlier published version resolves
+to a different path. The source is the latest earlier published path that differs from the current
+path.
+
+An automatic write skips a source path owned by a manual rule. Editing an automatic rule changes
+its origin to `manual`, so later publications do not update it. A path-template change does not
+migrate historical rules.
+
+If a generated rule would close a loop, validation rejects the redirect write and the publication
+fails. The collection has one globally unique `from` field and no locale or hostname scope; two
+localized routes cannot own the same source path with different destinations.
 
 ## Adapter boundary
 
