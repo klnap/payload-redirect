@@ -1,33 +1,33 @@
-import { RedirectValidationError } from '#redirect/core/redirects/model/errors'
+import { RedirectValidationError } from "#redirect/core/redirects/model/errors";
 
-export type RedirectStatusCode = 301 | 302
+export type RedirectStatusCode = 301 | 302;
 
-const SUPPORTED: readonly RedirectStatusCode[] = [301, 302]
+const SUPPORTED: readonly RedirectStatusCode[] = [301, 302];
 
-export const DEFAULT_REDIRECT_STATUS_CODE: RedirectStatusCode = 301
+export const DEFAULT_REDIRECT_STATUS_CODE: RedirectStatusCode = 301;
 
 const normalizeStatusCode = (value: unknown): RedirectStatusCode | undefined => {
-  const code = typeof value === 'string' ? Number(value) : value
-  if (code === 301 || code === 302) return code
-  return undefined
-}
+  const code = typeof value === "string" ? Number(value) : value;
+  if (code === 301 || code === 302) return code;
+  return undefined;
+};
 
 export const isRedirectStatusCode = (value: unknown): value is RedirectStatusCode =>
-  normalizeStatusCode(value) !== undefined
+  normalizeStatusCode(value) !== undefined;
 
 export const assertRedirectStatusCode = (value: unknown): RedirectStatusCode => {
-  const code = normalizeStatusCode(value)
+  const code = normalizeStatusCode(value);
   if (code === undefined) {
-    throw new RedirectValidationError(`statusCode must be one of ${SUPPORTED.join(', ')}`)
+    throw new RedirectValidationError(`statusCode must be one of ${SUPPORTED.join(", ")}`);
   }
-  return code
-}
+  return code;
+};
 
-export const requiresDestination = (_statusCode: RedirectStatusCode): boolean => true
+export const requiresDestination = (_statusCode: RedirectStatusCode): boolean => true;
 
 export const validateDestinationForStatus = (statusCode: RedirectStatusCode, to: unknown): void => {
-  const hasTo = typeof to === 'string' && to.trim().length > 0
+  const hasTo = typeof to === "string" && to.trim().length > 0;
   if (!hasTo) {
-    throw new RedirectValidationError(`statusCode ${statusCode} requires a non-empty "to" field`)
+    throw new RedirectValidationError(`statusCode ${statusCode} requires a non-empty "to" field`);
   }
-}
+};

@@ -1,22 +1,25 @@
 name: CI
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   push:
     branches: [main]
-  pull_request:
-  workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
+    name: verify
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      pull-requests: read # Dependency review reads the pull request's dependency graph.
     services:
       postgres:
         image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
@@ -34,24 +37,99 @@ jobs:
     env:
       PAYLOAD_REDIRECT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     steps:
+      - name: Validate pull request title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node -e 'const title = process.env.PR_TITLE; const valid = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9][a-z0-9._/-]*\))?!?: .+$/u.test(title); if (!valid) { console.error("Invalid Conventional Commit title: " + title); process.exit(1); }'
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        if: github.event_name == 'pull_request'
         with:
-          bun-version: 1.4.4
-          no-cache: true
+          fail-on-severity: high
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run check
+      - run: bun run test:int
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Use the pinned npm CLI
+        run: |
+          echo "$GITHUB_WORKSPACE/node_modules/.bin" >> "$GITHUB_PATH"
+          test "$(./node_modules/.bin/npm --version)" = "12.2.3"
+
+      - name: Pack and verify the consumer tarball
+        id: pack
+        env:
+          TARBALL_DIR: ${{ runner.temp }}
+          CONSUMER_DIR: ${{ runner.temp }}/payload-redirect-consumer
+        run: |
+          npm pack --pack-destination "$TARBALL_DIR" --json > "$TARBALL_DIR/pack.json"
+          TARBALL="$(node -e 'const path = require("node:path"); const output = require(process.argv[1]); const pack = Array.isArray(output) ? output[0] : Object.values(output)[0]; if (!pack) throw new Error("npm pack returned no package."); process.stdout.write(path.join(process.env.TARBALL_DIR, pack.filename));' "$TARBALL_DIR/pack.json")"
+          node scripts/verify-tarball.mjs --tarball "$TARBALL"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Test the tarball on Node.js 22
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.5
+          package-manager-cache: false
+
+      - name: Test the tarball on the minimum supported Node.js version
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.3
           package-manager-cache: false
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run lint:oxlint
-      - run: bun run check:boundaries
-      - run: bun run typecheck
-      - run: bun run test
-      - run: bun run test:int
-      - run: bun run typecheck:consumer
-      - run: bun run check:release
-      - run: bun audit --audit-level=high
+
+      - name: Test the tarball on the minimum supported Node.js 24 version
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Test the tarball on Node.js 24
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.1
+          package-manager-cache: false
+
+      - name: Test the tarball on the minimum supported Node.js 26 version
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          package-manager-cache: false
+
+      - name: Test the tarball on Node.js 26
+        working-directory: ${{ steps.pack.outputs.consumer-dir }}
+        run: node consumer.mjs

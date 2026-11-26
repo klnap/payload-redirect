@@ -1,194 +1,194 @@
-import type { Field, Validate } from 'payload'
+import type { Field, Validate } from "payload";
 import {
   DEFAULT_REDIRECT_ORIGIN,
   isRedirectOrigin,
   REDIRECT_ORIGIN_VALUES,
-} from '#redirect/core/redirects/model/origin'
+} from "#redirect/core/redirects/model/origin";
 import {
   assertRedirectStatusCode,
   DEFAULT_REDIRECT_STATUS_CODE,
   validateDestinationForStatus,
-} from '#redirect/core/redirects/model/status-code'
-import { normalizeRedirectSourcePath, normalizeRelativeRedirectPath } from '../normalize-path.js'
+} from "#redirect/core/redirects/model/status-code";
+import { normalizeRedirectSourcePath, normalizeRelativeRedirectPath } from "../normalize-path.js";
 
-const publicFieldRead = { read: () => true } as const
+const publicFieldRead = { read: () => true } as const;
 
 const normalizeSiblingFrom = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') return undefined
+  if (typeof value !== "string") return undefined;
   try {
-    return normalizeRedirectSourcePath(value)
+    return normalizeRedirectSourcePath(value);
   } catch {
-    return undefined
+    return undefined;
   }
-}
+};
 
 export const buildRedirectFields = (): Field[] => [
   {
-    name: 'from',
-    type: 'text',
+    name: "from",
+    type: "text",
     required: true,
     unique: true,
     access: publicFieldRead,
     validate: (value: unknown) => {
-      if (typeof value !== 'string') return 'from is required'
-      if (!value.trim()) return 'from is required'
+      if (typeof value !== "string") return "from is required";
+      if (!value.trim()) return "from is required";
       try {
-        normalizeRedirectSourcePath(value)
-        return true
+        normalizeRedirectSourcePath(value);
+        return true;
       } catch (error) {
-        return error instanceof Error ? error.message : 'Invalid from path'
+        return error instanceof Error ? error.message : "Invalid from path";
       }
     },
   },
   {
-    name: 'to',
-    type: 'text',
+    name: "to",
+    type: "text",
     required: true,
     access: publicFieldRead,
     validate: (value: unknown, { siblingData }: { siblingData: Record<string, unknown> }) => {
       try {
         const statusCode = assertRedirectStatusCode(
-          siblingData?.statusCode ?? DEFAULT_REDIRECT_STATUS_CODE
-        )
-        validateDestinationForStatus(statusCode, value)
+          siblingData?.statusCode ?? DEFAULT_REDIRECT_STATUS_CODE,
+        );
+        validateDestinationForStatus(statusCode, value);
         if (
-          typeof value === 'string' &&
+          typeof value === "string" &&
           normalizeRelativeRedirectPath(value) === normalizeSiblingFrom(siblingData?.from)
         ) {
-          return 'to must differ from from'
+          return "to must differ from from";
         }
-        return true
+        return true;
       } catch (error) {
-        return error instanceof Error ? error.message : 'Invalid to path'
+        return error instanceof Error ? error.message : "Invalid to path";
       }
     },
   },
   {
-    name: 'statusCode',
-    type: 'select',
-    label: 'Type',
+    name: "statusCode",
+    type: "select",
+    label: "Type",
     defaultValue: String(DEFAULT_REDIRECT_STATUS_CODE),
     required: true,
     access: publicFieldRead,
     options: [
-      { label: 'Permanent', value: '301' },
-      { label: 'Temporary', value: '302' },
+      { label: "Permanent", value: "301" },
+      { label: "Temporary", value: "302" },
     ],
     validate: (value: unknown) => {
       try {
-        assertRedirectStatusCode(value)
-        return true
+        assertRedirectStatusCode(value);
+        return true;
       } catch (error) {
-        return error instanceof Error ? error.message : 'Invalid statusCode'
+        return error instanceof Error ? error.message : "Invalid statusCode";
       }
     },
-    admin: { position: 'sidebar' },
+    admin: { position: "sidebar" },
   },
   {
-    name: 'enabled',
-    type: 'checkbox',
+    name: "enabled",
+    type: "checkbox",
     defaultValue: true,
     index: true,
     access: publicFieldRead,
-    admin: { position: 'sidebar' },
+    admin: { position: "sidebar" },
   },
   {
-    name: 'origin',
-    type: 'select',
+    name: "origin",
+    type: "select",
     required: true,
     defaultValue: DEFAULT_REDIRECT_ORIGIN,
     access: publicFieldRead,
     options: [
-      { label: 'Manual', value: 'manual' },
-      { label: 'Auto', value: 'auto' },
+      { label: "Manual", value: "manual" },
+      { label: "Auto", value: "auto" },
     ],
     validate: (value: unknown) =>
-      isRedirectOrigin(value) ? true : `origin must be ${REDIRECT_ORIGIN_VALUES.join(' or ')}`,
-    admin: { position: 'sidebar', readOnly: true },
+      isRedirectOrigin(value) ? true : `origin must be ${REDIRECT_ORIGIN_VALUES.join(" or ")}`,
+    admin: { position: "sidebar", readOnly: true },
   },
-]
+];
 
 export const mergeRedirectFields = (existingFields: Field[]): Field[] => {
-  const defaults = buildRedirectFields()
+  const defaults = buildRedirectFields();
   const existingByName = new Map(
     existingFields
       .filter(
         (field): field is Field & { name: string } =>
-          'name' in field && typeof field.name === 'string'
+          "name" in field && typeof field.name === "string",
       )
-      .map((field) => [field.name, field])
-  )
+      .map((field) => [field.name, field]),
+  );
   const defaultNames = new Set(
     defaults
       .filter(
         (field): field is Field & { name: string } =>
-          'name' in field && typeof field.name === 'string'
+          "name" in field && typeof field.name === "string",
       )
-      .map((field) => field.name)
-  )
+      .map((field) => field.name),
+  );
   const merged = defaults.map((field) => {
-    if (!('name' in field) || typeof field.name !== 'string') return field
-    const override = existingByName.get(field.name)
-    if (!override) return field
+    if (!("name" in field) || typeof field.name !== "string") return field;
+    const override = existingByName.get(field.name);
+    if (!override) return field;
     const validate =
-      'validate' in field && typeof field.validate === 'function' ? field.validate : undefined
+      "validate" in field && typeof field.validate === "function" ? field.validate : undefined;
     const overrideValidate =
-      'validate' in override && typeof override.validate === 'function'
+      "validate" in override && typeof override.validate === "function"
         ? override.validate
-        : undefined
+        : undefined;
     return {
       ...field,
       ...override,
       ...(validate
         ? {
             validate: async (value: unknown, options: Parameters<Validate>[1]) => {
-              const run = validate as Validate
-              const result = await run(value, options)
+              const run = validate as Validate;
+              const result = await run(value, options);
               return result === true && overrideValidate
                 ? (overrideValidate as Validate)(value, options)
-                : result
+                : result;
             },
           }
         : {}),
-    } as Field
-  })
+    } as Field;
+  });
 
   return [
     ...merged,
     ...existingFields.filter(
       (field) =>
-        !('name' in field) || typeof field.name !== 'string' || !defaultNames.has(field.name)
+        !("name" in field) || typeof field.name !== "string" || !defaultNames.has(field.name),
     ),
-  ]
-}
+  ];
+};
 
 export const assertRedirectFields = (fields: Field[]): void => {
   const expected = new Map([
-    ['from', 'text'],
-    ['to', 'text'],
-    ['statusCode', 'select'],
-    ['enabled', 'checkbox'],
-    ['origin', 'select'],
-  ])
+    ["from", "text"],
+    ["to", "text"],
+    ["statusCode", "select"],
+    ["enabled", "checkbox"],
+    ["origin", "select"],
+  ]);
   const named = fields.filter(
-    (field): field is Field & { name: string } => 'name' in field && typeof field.name === 'string'
-  )
+    (field): field is Field & { name: string } => "name" in field && typeof field.name === "string",
+  );
 
   for (const [name, type] of expected) {
-    const matching = named.filter((field) => field.name === name)
-    if (matching.length !== 1 || !('type' in matching[0]!) || matching[0]!.type !== type) {
+    const matching = named.filter((field) => field.name === name);
+    if (matching.length !== 1 || !("type" in matching[0]!) || matching[0]!.type !== type) {
       throw new Error(
-        `payload-redirect: overrides.fields must retain exactly one ${type} field named "${name}"`
-      )
+        `payload-redirect: overrides.fields must retain exactly one ${type} field named "${name}"`,
+      );
     }
   }
 
-  const from = named.find((field) => field.name === 'from')
-  const enabled = named.find((field) => field.name === 'enabled')
-  if (!from || !('unique' in from) || from.unique !== true) {
-    throw new Error('payload-redirect: overrides.fields must keep from.unique: true')
+  const from = named.find((field) => field.name === "from");
+  const enabled = named.find((field) => field.name === "enabled");
+  if (!from || !("unique" in from) || from.unique !== true) {
+    throw new Error("payload-redirect: overrides.fields must keep from.unique: true");
   }
-  if (!enabled || !('index' in enabled) || enabled.index !== true) {
-    throw new Error('payload-redirect: overrides.fields must keep enabled.index: true')
+  if (!enabled || !("index" in enabled) || enabled.index !== true) {
+    throw new Error("payload-redirect: overrides.fields must keep enabled.index: true");
   }
-}
+};

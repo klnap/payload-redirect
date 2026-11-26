@@ -1,4 +1,4 @@
-import { redirects } from '@klnap/payload-redirect'
+import { redirects } from "@klnap/payload-redirect";
 
 redirects({
   collections: {
@@ -6,4 +6,4 @@ redirects({
       getPath: ({ doc }) => `/articles/${String(doc.title)}`,
     },
   },
-})
+});

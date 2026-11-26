@@ -1,4 +1,4 @@
-import type { CollectionConfig, CollectionSlug, PayloadRequest, TypedLocale } from 'payload'
+import type { CollectionConfig, CollectionSlug, PayloadRequest, TypedLocale } from "payload";
 
 export const fetchLocalePublishedDoc = async ({
   req,
@@ -6,10 +6,10 @@ export const fetchLocalePublishedDoc = async ({
   docId,
   locale,
 }: {
-  req: PayloadRequest
-  collection: CollectionConfig
-  docId: string | number
-  locale?: string
+  req: PayloadRequest;
+  collection: CollectionConfig;
+  docId: string | number;
+  locale?: string;
 }): Promise<Record<string, unknown>> =>
   (await req.payload.findByID({
     collection: collection.slug as CollectionSlug,
@@ -19,4 +19,4 @@ export const fetchLocalePublishedDoc = async ({
     depth: 0,
     overrideAccess: true,
     req,
-  })) as Record<string, unknown>
+  })) as Record<string, unknown>;

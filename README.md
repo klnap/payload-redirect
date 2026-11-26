@@ -16,22 +16,23 @@ The plugin owns its Payload collection, so manual redirects need no collection s
 bun add @klnap/payload-redirect
 ```
 
-Requires Payload `>=3.94.1 <4`. PostgreSQL is the supported database adapter.
+Requires Node.js `^22.23.5 || ^24.22.3 || >=26.13.1` and Payload `>=3.94.1 <4`.
+PostgreSQL is the supported database adapter.
 
 ## Manual redirects
 
 Register the plugin with no options:
 
 ```ts
-import { buildConfig } from 'payload'
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import { redirects } from '@klnap/payload-redirect'
+import { buildConfig } from "payload";
+import { postgresAdapter } from "@payloadcms/db-postgres";
+import { redirects } from "@klnap/payload-redirect";
 
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET!,
   db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URI! } }),
   plugins: [redirects()],
-})
+});
 ```
 
 The plugin adds the `redirects` collection. Add, edit, enable, or disable rules in Payload Admin. Manual rules work without automatic redirect configuration.
@@ -41,52 +42,52 @@ The plugin adds the `redirects` collection. Add, edit, enable, or disable rules 
 Automatic generation is enabled for each collection configured in `redirects({ collections })`. Those collections must use Payload drafts so the plugin can compare published snapshots.
 
 ```ts
-import { buildConfig } from 'payload'
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import { redirects } from '@klnap/payload-redirect'
+import { buildConfig } from "payload";
+import { postgresAdapter } from "@payloadcms/db-postgres";
+import { redirects } from "@klnap/payload-redirect";
 
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET!,
   db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URI! } }),
   localization: {
-    locales: ['pl', 'en', 'de'],
-    defaultLocale: 'pl',
+    locales: ["pl", "en", "de"],
+    defaultLocale: "pl",
   },
   collections: [
     {
-      slug: 'articles',
+      slug: "articles",
       versions: { drafts: true },
       fields: [
-        { name: 'title', type: 'text', required: true },
-        { name: 'slug', type: 'text', required: true, localized: true },
+        { name: "title", type: "text", required: true },
+        { name: "slug", type: "text", required: true, localized: true },
       ],
     },
     {
-      slug: 'projects',
+      slug: "projects",
       versions: { drafts: true },
-      fields: [{ name: 'slug', type: 'text', required: true, localized: true }],
+      fields: [{ name: "slug", type: "text", required: true, localized: true }],
     },
   ],
   plugins: [
     redirects({
       localePrefixes: {
-        pl: '',
-        en: '/en',
-        de: '/de',
+        pl: "",
+        en: "/en",
+        de: "/de",
       },
       collections: {
-        articles: { path: '/[slug]' },
+        articles: { path: "/[slug]" },
         projects: {
           paths: {
-            pl: '/realizacje/[slug]',
-            en: '/work/[slug]',
-            de: '/projekte/[slug]',
+            pl: "/realizacje/[slug]",
+            en: "/work/[slug]",
+            de: "/projekte/[slug]",
           },
         },
       },
     }),
   ],
-})
+});
 ```
 
 ### Reading the configuration
@@ -112,25 +113,25 @@ The plugin tracks the resolved public URL, not a particular slug field. A change
 Use the same options directly on a collection when central configuration is not convenient:
 
 ```ts
-import type { CollectionConfig } from 'payload'
-import type { RedirectCollectionOptions } from '@klnap/payload-redirect'
+import type { CollectionConfig } from "payload";
+import type { RedirectCollectionOptions } from "@klnap/payload-redirect";
 
 const projectRedirect = {
   paths: {
-    pl: '/realizacje/[slug]',
-    en: '/work/[slug]',
-    de: '/projekte/[slug]',
+    pl: "/realizacje/[slug]",
+    en: "/work/[slug]",
+    de: "/projekte/[slug]",
   },
-} satisfies RedirectCollectionOptions<'projects'>
+} satisfies RedirectCollectionOptions<"projects">;
 
 export const Projects: CollectionConfig = {
-  slug: 'projects',
+  slug: "projects",
   versions: { drafts: true },
   custom: {
     redirect: projectRedirect,
   },
-  fields: [{ name: 'slug', type: 'text', required: true, localized: true }],
-}
+  fields: [{ name: "slug", type: "text", required: true, localized: true }],
+};
 ```
 
 Central configuration replaces collection-level configuration for that collection. The plugin does not merge path strategies.
@@ -147,7 +148,7 @@ Use `path` when every locale has the same route shape:
 
 ```ts
 articles: {
-  path: '/articles/[slug]'
+  path: "/articles/[slug]";
 }
 ```
 
@@ -155,7 +156,7 @@ Templates use top-level field names in brackets. Use multiple fields when the pu
 
 ```ts
 projects: {
-  path: '/[category]/[slug]'
+  path: "/[category]/[slug]";
 }
 ```
 
@@ -217,12 +218,12 @@ Pass native Payload collection options through `overrides`:
 ```ts
 redirects({
   overrides: {
-    slug: 'url-rules',
-    labels: { singular: 'URL rule', plural: 'URL rules' },
-    admin: { group: 'Settings' },
+    slug: "url-rules",
+    labels: { singular: "URL rule", plural: "URL rules" },
+    admin: { group: "Settings" },
     trash: true,
   },
-})
+});
 ```
 
 Use `overrides.fields` to customize the plugin fields. Required fields, validation, uniqueness, and indexes remain enforced.
@@ -244,10 +245,10 @@ The package stores rules. Your application retrieves enabled rules, caches them,
 
 ```ts
 const { docs } = await payload.find({
-  collection: 'redirects',
+  collection: "redirects",
   where: { enabled: { equals: true } },
   depth: 0,
-})
+});
 
 // Match the incoming path and return the selected rule's statusCode and to.
 ```

@@ -1,76 +1,76 @@
-import { randomBytes } from 'node:crypto'
-import { redirects } from '@klnap/payload-redirect'
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { BasePayload, buildConfig, type CollectionConfig, type Payload } from 'payload'
+import { randomBytes } from "node:crypto";
+import { redirects } from "@klnap/payload-redirect";
+import { postgresAdapter } from "@payloadcms/db-postgres";
+import { lexicalEditor } from "@payloadcms/richtext-lexical";
+import { BasePayload, buildConfig, type CollectionConfig, type Payload } from "payload";
 import {
   closeTestPostgresPool,
   createIsolatedDatabase,
   dropIsolatedDatabase,
-} from './test-postgres'
+} from "./test-postgres";
 
 const resolveTestDatabaseUrl = () => {
-  const url = process.env.PAYLOAD_REDIRECT_TEST_DATABASE_URL?.trim()
+  const url = process.env.PAYLOAD_REDIRECT_TEST_DATABASE_URL?.trim();
   if (!url) {
     throw new Error(
-      'PAYLOAD_REDIRECT_TEST_DATABASE_URL is required; configure a disposable PostgreSQL service'
-    )
+      "PAYLOAD_REDIRECT_TEST_DATABASE_URL is required; configure a disposable PostgreSQL service",
+    );
   }
-  return url
-}
-export const intDatabaseConfigured = Boolean(resolveTestDatabaseUrl())
+  return url;
+};
+export const intDatabaseConfigured = Boolean(resolveTestDatabaseUrl());
 
 // Drizzle pushDevSchema skips when rawTables match a prior in-process init (new DB still empty).
-process.env.PAYLOAD_FORCE_DRIZZLE_PUSH = 'true'
+process.env.PAYLOAD_FORCE_DRIZZLE_PUSH = "true";
 
-const PAYLOAD_SECRET = 'payload-redirect-int-secret-32chars!!'
+const PAYLOAD_SECRET = "payload-redirect-int-secret-32chars!!";
 
-let harnessInitLock: Promise<void> = Promise.resolve()
+let harnessInitLock: Promise<void> = Promise.resolve();
 
 export type RedirectIntHandle = {
-  payload: Payload
+  payload: Payload;
   /** Isolated Postgres URL (integration tests / schema checks). */
-  connectionString: string
-  destroy: () => Promise<void>
-  resetRedirects: () => Promise<void>
-  resetArticles: () => Promise<void>
-}
+  connectionString: string;
+  destroy: () => Promise<void>;
+  resetRedirects: () => Promise<void>;
+  resetArticles: () => Promise<void>;
+};
 
 export type HarnessOptions = {
-  collections?: CollectionConfig[]
-  pluginCollection?: CollectionConfig
-  localePrefixes?: Record<string, string>
+  collections?: CollectionConfig[];
+  pluginCollection?: CollectionConfig;
+  localePrefixes?: Record<string, string>;
   localization?: {
-    locales: string[]
-    defaultLocale: string
-    fallback?: boolean
-  }
-}
+    locales: string[];
+    defaultLocale: string;
+    fallback?: boolean;
+  };
+};
 
 export const draftVersions = {
   drafts: {
     autosave: false,
     localizeStatus: false,
   },
-}
+};
 
 export const localizedDraftVersions = {
   drafts: {
     autosave: false,
     localizeStatus: true,
   },
-}
+};
 
 export const withPublishAllLocales = {
   publishAllLocales: true,
-}
+};
 
 export const withDraftQuery = {
-  query: { draft: 'true' as const },
-}
+  query: { draft: "true" as const },
+};
 
 async function wipeCollection(payload: Payload, slug: string) {
-  let page = 1
+  let page = 1;
   for (;;) {
     const existing = await payload.find({
       collection: slug,
@@ -78,54 +78,54 @@ async function wipeCollection(payload: Payload, slug: string) {
       page,
       depth: 0,
       overrideAccess: true,
-    })
-    if (existing.docs.length === 0) break
+    });
+    if (existing.docs.length === 0) break;
     for (const doc of existing.docs) {
-      await payload.delete({ collection: slug, id: doc.id, overrideAccess: true })
+      await payload.delete({ collection: slug, id: doc.id, overrideAccess: true });
     }
-    if (!existing.hasNextPage) break
-    page += 1
+    if (!existing.hasNextPage) break;
+    page += 1;
   }
 }
 
 export async function createRedirectIntPayload(
-  options: HarnessOptions = {}
+  options: HarnessOptions = {},
 ): Promise<RedirectIntHandle> {
-  const resolvedBaseUrl = resolveTestDatabaseUrl()
+  const resolvedBaseUrl = resolveTestDatabaseUrl();
   if (!resolvedBaseUrl) {
-    throw new Error('PAYLOAD_REDIRECT_TEST_DATABASE_URL required for integration tests')
+    throw new Error("PAYLOAD_REDIRECT_TEST_DATABASE_URL required for integration tests");
   }
-  const baseUrl: string = resolvedBaseUrl
+  const baseUrl: string = resolvedBaseUrl;
 
-  const prior = harnessInitLock
-  let releaseLock!: () => void
+  const prior = harnessInitLock;
+  let releaseLock!: () => void;
   harnessInitLock = new Promise<void>((resolve) => {
-    releaseLock = resolve
-  })
-  await prior
+    releaseLock = resolve;
+  });
+  await prior;
 
   try {
-    const isolated = await createIsolatedDatabase(baseUrl, 'redirect')
-    const connectionString = isolated.url
+    const isolated = await createIsolatedDatabase(baseUrl, "redirect");
+    const connectionString = isolated.url;
 
-    const redirectsSlug = options.pluginCollection?.slug ?? 'redirects'
+    const redirectsSlug = options.pluginCollection?.slug ?? "redirects";
     const usesLocalizedStatus = options.collections?.some((c) => {
-      const versions = c.versions
-      if (!versions || typeof versions !== 'object' || !('drafts' in versions)) return false
-      const drafts = versions.drafts
-      return typeof drafts === 'object' && drafts !== null && drafts.localizeStatus === true
-    })
+      const versions = c.versions;
+      if (!versions || typeof versions !== "object" || !("drafts" in versions)) return false;
+      const drafts = versions.drafts;
+      return typeof drafts === "object" && drafts !== null && drafts.localizeStatus === true;
+    });
 
     const config = await buildConfig({
-      secret: `${PAYLOAD_SECRET}-${randomBytes(8).toString('hex')}`,
+      secret: `${PAYLOAD_SECRET}-${randomBytes(8).toString("hex")}`,
       editor: lexicalEditor(),
-      serverURL: `http://redirect-int-${randomBytes(4).toString('hex')}.test`,
+      serverURL: `http://redirect-int-${randomBytes(4).toString("hex")}.test`,
       localization: options.localization,
       ...(usesLocalizedStatus ? { experimental: { localizeStatus: true } } : {}),
       collections: options.collections ?? [],
       globals: [],
       db: postgresAdapter({
-        idType: 'uuid',
+        idType: "uuid",
         pool: { connectionString },
         push: true,
       }),
@@ -140,56 +140,56 @@ export async function createRedirectIntPayload(
           localePrefixes: options.localePrefixes,
         }),
       ],
-    })
+    });
 
-    const payload = new BasePayload()
-    await payload.init({ config })
+    const payload = new BasePayload();
+    await payload.init({ config });
 
     async function resetRedirects() {
-      await wipeCollection(payload, redirectsSlug)
+      await wipeCollection(payload, redirectsSlug);
     }
 
     async function resetArticles() {
-      for (const slug of ['articles', 'custom-articles', 'items', 'fail-publish']) {
+      for (const slug of ["articles", "custom-articles", "items", "fail-publish"]) {
         if (payload.collections[slug]) {
-          await wipeCollection(payload, slug)
+          await wipeCollection(payload, slug);
         }
       }
     }
 
     async function destroy() {
-      const cleanupErrors: unknown[] = []
+      const cleanupErrors: unknown[] = [];
 
       try {
-        await payload.db.destroy?.()
+        await payload.db.destroy?.();
       } catch (error) {
-        cleanupErrors.push(error)
+        cleanupErrors.push(error);
       }
 
       try {
         const pool = (
           payload.db as unknown as {
-            pool?: Parameters<typeof closeTestPostgresPool>[0]
+            pool?: Parameters<typeof closeTestPostgresPool>[0];
           }
-        ).pool
-        if (pool) await closeTestPostgresPool(pool)
+        ).pool;
+        if (pool) await closeTestPostgresPool(pool);
       } catch (error) {
-        cleanupErrors.push(error)
+        cleanupErrors.push(error);
       }
 
       try {
-        await dropIsolatedDatabase(baseUrl, isolated.database)
+        await dropIsolatedDatabase(baseUrl, isolated.database);
       } catch (error) {
-        cleanupErrors.push(error)
+        cleanupErrors.push(error);
       }
 
       if (cleanupErrors.length > 0) {
-        throw new AggregateError(cleanupErrors, 'Failed to clean up redirect integration fixture')
+        throw new AggregateError(cleanupErrors, "Failed to clean up redirect integration fixture");
       }
     }
 
-    return { payload, connectionString, destroy, resetRedirects, resetArticles }
+    return { payload, connectionString, destroy, resetRedirects, resetArticles };
   } finally {
-    releaseLock()
+    releaseLock();
   }
 }

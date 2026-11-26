@@ -10,10 +10,10 @@ Hooks look up by normalized `from`. At most one row per `from` is a domain invar
 
 ## Schema (Payload field flags)
 
-| Field | Flags | Role |
-| :--- | :--- | :--- |
-| `from` | `unique: true` | Point lookups; duplicate guard (Postgres unique btree via Payload) |
-| `enabled` | `index: true` | Filters on active rules |
+| Field     | Flags          | Role                                                               |
+| :-------- | :------------- | :----------------------------------------------------------------- |
+| `from`    | `unique: true` | Point lookups; duplicate guard (Postgres unique btree via Payload) |
+| `enabled` | `index: true`  | Filters on active rules                                            |
 
 Collection defaults: `versions: false`, `defaultSort: 'from'`, `timestamps: true`.
 
@@ -33,11 +33,11 @@ See host database performance docs when adding indexes for large redirect tables
 
 ## Query patterns (package)
 
-| Path | DB round-trips | Notes |
-| :--- | :--- | :--- |
-| `ensureAutoRedirect` | 1 or 2 | Single `find` by `from`; create if absent |
-| Duplicate guard | 1 per save | `beforeChange`; `id not_equals` on update |
-| Redirect-chain guard | 1 per hop | `beforeChange`; bounded at 1,000 hops |
+| Path                 | DB round-trips | Notes                                     |
+| :------------------- | :------------- | :---------------------------------------- |
+| `ensureAutoRedirect` | 1 or 2         | Single `find` by `from`; create if absent |
+| Duplicate guard      | 1 per save     | `beforeChange`; `id not_equals` on update |
+| Redirect-chain guard | 1 per hop      | `beforeChange`; bounded at 1,000 hops     |
 
 ## Non-goals
 
