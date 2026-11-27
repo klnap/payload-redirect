@@ -3,16 +3,22 @@ import { REDIRECT_CONTEXT_KEYS } from "#redirect/core/redirects/context-keys";
 import type { PublicationTransition } from "../types.js";
 import { getConfiguredLocales, hasLocalizedDraftStatus, resolveDefaultLocale } from "./locales.js";
 import { isDraftSave, isLocalePublished } from "./publish-intent.js";
-import { isPublishedVersionRow, type VersionRow } from "./versions/version-rows.js";
+import {
+  isPublishedVersionRow,
+  isThisPublication,
+  type VersionRow,
+} from "./versions/version-rows.js";
 
 const VERSION_PAGE_SIZE = 50;
 
 export const getGlobalPublicationTransition = async ({
   req,
   globalSlug,
+  updatedAt,
 }: {
   req: PayloadRequest;
   globalSlug: string;
+  updatedAt: unknown;
 }): Promise<PublicationTransition[]> => {
   if (
     isDraftSave(req) ||
@@ -43,7 +49,7 @@ export const getGlobalPublicationTransition = async ({
     if (!currentDoc || Object.keys(currentDoc).length === 0) continue;
     if (!isLocalePublished(currentDoc._status, locale ?? "")) continue;
 
-    const publishedDocs: Record<string, unknown>[] = [];
+    const rows: VersionRow[] = [];
     let page = 1;
     while (true) {
       const result = await req.payload.findGlobalVersions({
@@ -58,20 +64,23 @@ export const getGlobalPublicationTransition = async ({
         req,
       });
 
-      publishedDocs.push(
-        ...(result.docs as VersionRow[])
-          .filter((row) => isPublishedVersionRow(row, locale, { localizeStatus, defaultLocale }))
-          .map((row) => row.version)
-          .filter((version): version is Record<string, unknown> => Boolean(version)),
+      rows.push(
+        ...(result.docs as VersionRow[]).filter((row) =>
+          isPublishedVersionRow(row, locale, { localizeStatus, defaultLocale }),
+        ),
       );
       if (!result.hasNextPage) break;
       page += 1;
     }
+    // Only a locale whose newest published version is this operation's takes part; see getPublicationTransition.
+    if (!isThisPublication(rows[0], updatedAt)) continue;
 
     transitions.push({
       locale,
       currentDoc: currentDoc as Record<string, unknown>,
-      publishedDocs,
+      publishedDocs: rows
+        .map((row) => row.version)
+        .filter((version): version is Record<string, unknown> => Boolean(version)),
     });
   }
 

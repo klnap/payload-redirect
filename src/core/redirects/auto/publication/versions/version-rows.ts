@@ -28,3 +28,7 @@ export const isPublishedVersionRow = (
   }
   return false;
 };
+
+/** True when `row` is the publication saved by the operation that produced `updatedAt`. */
+export const isThisPublication = (row: VersionRow | undefined, updatedAt: unknown): boolean =>
+  row !== undefined && typeof updatedAt === "string" && row.version?.updatedAt === updatedAt;

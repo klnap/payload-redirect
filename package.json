@@ -39,9 +39,10 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "typecheck:consumer": "tsc -p tsconfig.type-fixture.json && tsc -p tsconfig.type-fixture.no-generated.json",
+    "typecheck:consumer": "tsc -p tsconfig.type-fixture.json && tsc -p tsconfig.type-fixture.no-generated.json && tsc -p tsconfig.type-fixture.readme.json",
     "test": "bun test src tests/unit",
     "test:int": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/integration tests/security --max-concurrency 1 --timeout=15000",
+    "test:consumer": "bun scripts/with-ephemeral-postgres.mjs scripts/ephemeral-postgres.config.mjs -- bun test tests/consumer --timeout=900000",
     "check:boundaries": "depcruise --config dependency-cruiser.config.mjs --output-type err-long src",
     "lint": "biome lint .",
     "format": "biome format .",

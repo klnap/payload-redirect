@@ -1,40 +1,51 @@
 # `@klnap/payload-redirect`
 
-Redirect management for Payload CMS. When a published Collection or Global path changes, the plugin stores a permanent redirect from the old path to the new one. Editors can also create manual `301` and `302` rules in the Payload Admin.
+Redirect management for Payload CMS.
 
-The plugin stores rules. Your application matches incoming requests and sends the response. A complete Next.js example is in [Serving redirects](#serving-redirects).
+## Quick start
+
+Register the plugin once in `payload.config.ts`:
+
+```ts
+import { redirects } from "@klnap/payload-redirect";
+import { buildConfig } from "payload";
+
+export default buildConfig({
+  // ...your database, editor, and collections
+  plugins: [
+    redirects({
+      collections: {
+        articles: { path: "/articles/[slug]" },
+      },
+    }),
+  ],
+});
+```
+
+Publish an article, then change its slug and publish again:
 
 ```text
-/articles/guides/getting-started-with-payload
-→ /articles/tutorials/getting-started-with-payload (301)
+/articles/hello-world
+→ /articles/introduction-to-payload (301)
 ```
+
+The plugin stores the rule. Your application looks it up and sends the response; see [Application integration](#application-integration). Draft edits alone create no rule.
+
+## Why?
+
+Published URLs change when editors update content. A changed slug breaks links from search results, social posts, and other sites. Moved pages and campaign links need redirects too, and maintaining each one by hand is easy to forget.
+
+This plugin records the change automatically when a published path moves. It also gives editors a place in the Payload Admin to manage redirects for moved pages and campaign links.
 
 ## Features
 
-- **Automatic `301`s** when a published path changes, including changes that do not touch the slug, such as a category.
-- **Configuration beside the schema** with `custom.redirect` on each Collection or Global.
-- **Complete-path tracking** through a path template or a typed `getPath` callback.
-- **Native localization** with per-locale templates, explicit prefixes, and no locale fallback.
-- **Globals** with the same publication and redirect rules as Collections.
-- **Manual rules** in the Payload Admin, enabled or disabled, with no automatic configuration.
-- **Safe writes**: duplicate and cyclic rules are rejected, and manual rules are never overwritten.
-- **No runtime dependencies** beyond the Payload peer.
-
-## Contents
-
-- [Installation](#installation)
-- [Complete example](#complete-example)
-- [How it works](#how-it-works)
-- [Configuration](#configuration)
-- [Localization](#localization)
-- [Globals](#globals)
-- [Manual redirects](#manual-redirects)
-- [Serving redirects](#serving-redirects)
-- [Overrides and access](#overrides-and-access)
-- [Reference](#reference)
-- [Compatibility](#compatibility)
-- [Limitations](#limitations)
-- [Documentation](#documentation)
+- Automatic `301` rules when a published path changes, including changes to other fields in the path, such as a category.
+- Configuration next to the schema with `custom.redirect`, or centrally in `redirects()`.
+- Collections and Globals with the same rules.
+- Native Payload localization with one template per locale, or one shared template with locale prefixes.
+- Manual `301` and `302` rules, enabled or disabled, with query strings and fragments.
+- Duplicate sources and loops are rejected. Manual rules are never overwritten by automatic ones.
+- No runtime dependencies beyond the Payload peer.
 
 ## Installation
 
@@ -46,47 +57,16 @@ bun add @klnap/payload-redirect
 npm install @klnap/payload-redirect
 ```
 
-`payload` is a required peer. `@payloadcms/db-postgres` is an optional peer, needed only with PostgreSQL.
+`payload` is a required peer dependency. `@payloadcms/db-postgres` is an optional peer dependency; install it when you use PostgreSQL. Node.js versions are listed in [Compatibility](#compatibility-and-documentation).
 
-## Complete example
+## Usage
 
-These four files form a working setup for a Payload 3 app with Next.js 16 (App Router) and PostgreSQL. Each one is complete. The `custom` key is the extension point: Payload stores it as-is on collections, globals, and fields. This plugin reads only `custom.redirect`. You can use other `custom` keys for your own metadata.
+### Automatic redirects
 
-### 1. `src/payload.config.ts`
-
-```ts
-import { postgresAdapter } from "@payloadcms/db-postgres";
-import { lexicalEditor } from "@payloadcms/richtext-lexical";
-import { buildConfig } from "payload";
-import { redirects } from "@klnap/payload-redirect";
-import { Articles } from "./collections/Articles";
-import { About } from "./globals/About";
-
-export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET ?? "",
-  editor: lexicalEditor(),
-  db: postgresAdapter({
-    pool: { connectionString: process.env.DATABASE_URI },
-  }),
-  localization: {
-    locales: ["en", "fr", "de"],
-    defaultLocale: "en",
-  },
-  collections: [Articles],
-  globals: [About],
-  plugins: [
-    redirects({
-      localePrefixes: { en: "", fr: "/fr", de: "/de" },
-    }),
-  ],
-});
-```
-
-`redirects()` is called once. It adds the `redirects` collection, the publication hooks, and the locale prefixes.
-
-### 2. `src/collections/Articles.ts`
+Add `custom.redirect` to any Collection with drafts enabled:
 
 ```ts
+// src/collections/Articles.ts
 import type { CollectionConfig } from "payload";
 import type { RedirectCollectionOptions } from "@klnap/payload-redirect";
 
@@ -95,15 +75,122 @@ export const Articles: CollectionConfig = {
   versions: { drafts: true },
   admin: { useAsTitle: "title" },
   fields: [
+    { name: "title", type: "text", required: true },
+    { name: "slug", type: "text", required: true },
+  ],
+  custom: {
+    redirect: {
+      path: "/articles/[slug]",
+    } satisfies RedirectCollectionOptions<"articles">,
+  },
+};
+```
+
+Register the plugin without options:
+
+```ts
+plugins: [redirects()],
+```
+
+Central configuration does the same job. Use either pattern, not both. A central entry replaces the entity's `custom.redirect` for that entity.
+
+```ts
+redirects({
+  collections: {
+    articles: { path: "/articles/[slug]" },
+  },
+});
+```
+
+A route is one of three strategies:
+
+| Option    | Use when                                                                              |
+| --------- | ------------------------------------------------------------------------------------- |
+| `path`    | The route is a template over top-level fields, such as `/articles/[slug]`.            |
+| `paths`   | Each locale has its own template. See [Localization](#localization).                  |
+| `getPath` | The route depends on logic a template cannot express. Return `null` to skip a locale. |
+
+Prefer `path` and `paths`. Use `getPath` only when you need it:
+
+```ts
+custom: {
+  redirect: {
+    getPath: ({ doc }) => (doc.category === "interviews" ? `/interviews/${doc.slug}` : null),
+  } satisfies RedirectCollectionOptions<"articles">,
+},
+```
+
+Values in `getPath` are not encoded for you. Encode dynamic segments with `encodeURIComponent` when they can contain spaces or reserved characters.
+
+A rule is created only when a publication changes the published path. Draft saves, unchanged republications, and unpublishing create nothing. A first publication creates nothing either, because there is no previous path.
+
+Full-path tracking uses several fields. A category change then creates a redirect even when the slug stays the same:
+
+```ts
+path: "/articles/[category]/[slug]",
+```
+
+### Globals
+
+Globals work the same way. Give the Global drafts and a `custom.redirect` entry. This About page is a familiar example:
+
+```ts
+// src/globals/About.ts
+import type { GlobalConfig } from "payload";
+import type { RedirectGlobalOptions } from "@klnap/payload-redirect";
+
+export const About: GlobalConfig = {
+  slug: "about",
+  versions: { drafts: true },
+  fields: [{ name: "slug", type: "text", required: true }],
+  custom: {
+    redirect: {
+      path: "/[slug]",
+    } satisfies RedirectGlobalOptions<"about">,
+  },
+};
+```
+
+Publishing a new slug `about-us` creates this redirect:
+
+```text
+/about → /about-us (301)
+```
+
+### Localization
+
+The plugin uses Payload's native content localization. Configure locales in `buildConfig`, make the slug field localized, and give each locale its path in `paths`:
+
+```ts
+// payload.config.ts
+export default buildConfig({
+  localization: {
+    locales: ["en", "fr", "de"],
+    defaultLocale: "en",
+  },
+  // ...
+  plugins: [
+    redirects({
+      localePrefixes: { en: "", fr: "/fr", de: "/de" },
+    }),
+  ],
+});
+```
+
+```ts
+// src/collections/Articles.ts
+export const Articles: CollectionConfig = {
+  slug: "articles",
+  versions: { drafts: true },
+  fields: [
     { name: "title", type: "text", required: true, localized: true },
     { name: "slug", type: "text", required: true, localized: true },
-    { name: "category", type: "text", required: true },
   ],
   custom: {
     redirect: {
       paths: {
         en: "/articles/[slug]",
-        fr: "/actualites/[slug]",
+        fr: "/articles/[slug]",
         de: "/artikel/[slug]",
       },
     } satisfies RedirectCollectionOptions<"articles">,
@@ -111,33 +198,73 @@ export const Articles: CollectionConfig = {
 };
 ```
 
-Tracked collections need `versions: { drafts: true }`. The `satisfies` clause types the route against this collection. Use `paths` because the collection is localized. Locales in `paths` must match `localization.locales` exactly.
+With these settings the same article has one path per locale:
 
-### 3. `src/globals/About.ts`
+| Locale | Slug              | Public path                  |
+| ------ | ----------------- | ---------------------------- |
+| `en`   | `getting-started` | `/articles/getting-started`  |
+| `fr`   | `premiers-pas`    | `/fr/articles/premiers-pas`  |
+| `de`   | `erste-schritte`  | `/de/artikel/erste-schritte` |
 
-```ts
-import type { GlobalConfig } from "payload";
-import type { RedirectGlobalOptions } from "@klnap/payload-redirect";
+Changing the French slug to `bien-demarrer` and publishing creates only the French redirect:
 
-export const About: GlobalConfig = {
-  slug: "about",
-  versions: { drafts: true },
-  fields: [{ name: "slug", type: "text", required: true, localized: true }],
-  custom: {
-    redirect: {
-      getPath: ({ doc, locale }) => `${locale === "fr" ? "/fr" : ""}/${doc.slug}`,
-    } satisfies RedirectGlobalOptions<"about">,
-  },
-};
+```text
+/fr/articles/premiers-pas
+→ /fr/articles/bien-demarrer (301)
 ```
 
-`getPath` returns the complete path. The plugin does not add prefixes to it, so the French prefix is added here.
+Rules for localized paths:
 
-### 4. `src/proxy.ts`
+- `path` is one template for every locale. `paths` gives one template per locale and must list every locale in `localization.locales`.
+- `localePrefixes` adds a prefix to `path` and `paths`. It must list every locale. Use `""` for the default locale.
+- A locale without a slug is skipped. Generation never uses another locale's slug, even when Payload's fallback is enabled for reads.
+- Redirect rules have no locale. Different locales need different source paths.
+- Payload's experimental localized publication status (`localizeStatus`) is supported at the level described in [Compatibility](#compatibility-and-documentation).
 
-Next.js 16 runs `proxy.ts` on the Node.js runtime by default, so it can use Payload's Local API. Redirects are sent from here with the status stored on the rule.
+For Globals, the same `localePrefixes` apply to the template. `/about` becomes `/fr/about` in French; use a localized slug field for the translated page name, such as `/fr/a-propos` and `/de/uber-uns`.
+
+### Manual redirects
+
+`redirects()` registers a Payload collection named `redirects`. Editors create and edit rules in the Payload Admin. Manual rules need no automatic configuration and no tracked Collection or Global.
+
+| From           | To                                     | Status |
+| -------------- | -------------------------------------- | ------ |
+| `/old-page`    | `/new-page`                            | `301`  |
+| `/old-guide`   | `/guides/getting-started#installation` | `301`  |
+| `/summer-sale` | `/offers`                              | `302`  |
+
+Use `301` for a permanent move. Use `302` for a temporary destination, such as a seasonal offer. Destinations may include a fragment. Sources may not.
+
+### Campaign links
+
+Share short, readable URLs in SMS campaigns, newsletters, or promotional materials. A manual rule sends visitors to the landing page with campaign parameters:
+
+| Field        | Value                                                                 |
+| ------------ | --------------------------------------------------------------------- |
+| `from`       | `/summer-2027`                                                        |
+| `to`         | `/summer-2027?utm_source=sms&utm_medium=sms&utm_campaign=summer_2027` |
+| `statusCode` | `302`                                                                 |
+| `enabled`    | `true`                                                                |
+
+The public pathname stays the same. Only the destination carries the parameters.
+
+Query strings follow these rules:
+
+- Sources and destinations may contain a query string. Matching is exact: `/campaign?ref=sms` is different from `/campaign` and from `/campaign?ref=email`.
+- A source and destination can share a pathname when their query strings differ. The application must include the query string in its lookup, shown in [Application integration](#application-integration). Otherwise the landing request matches the campaign rule again.
+- Parameters are not merged, reordered, or forwarded. The destination is the stored `to`.
+- Automatic routes have no query strings. Campaign rules are ordinary manual rules.
+
+Editing or disabling an automatic rule in the Payload Admin turns it into a manual rule, and later publications no longer change it. A manual rule that already owns a source path is never overwritten by an automatic one.
+
+The plugin stores these rules only. It does not collect attribution data or connect to analytics or advertising tools.
+
+## Application integration
+
+The plugin stores rules and never sends a response. Your application looks each request up and redirects. The example below is for Next.js 16 (`src/proxy.ts`); the same logic works in any framework that can call the Payload Local API.
 
 ```ts
+// src/proxy.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
@@ -166,8 +293,8 @@ export async function proxy(request: NextRequest) {
   const rule = docs[0];
   if (!rule) return NextResponse.next();
 
+  // Never redirect a request to the URL it already has.
   const target = new URL(rule.to, request.url);
-  // A rule that points at the current path and query would redirect forever. Fragments are not sent to the server.
   if (target.pathname + target.search === from) return NextResponse.next();
 
   return NextResponse.redirect(target, Number(rule.statusCode) as 301 | 302);
@@ -178,295 +305,99 @@ export const config = {
 };
 ```
 
-`@payload-config` is the alias that the Payload Next.js template sets up. It points to your `payload.config.ts`. The lookup runs on every matched request, so keep the matcher narrow for your public routes. See [Serving redirects](#serving-redirects) for the path rules.
+`@payload-config` is the alias that the Payload Next.js template sets up. It points to your `payload.config.ts`. If you renamed the redirects collection with `overrides.slug`, use that slug here.
 
-## How it works
+How the lookup matches:
 
-The plugin compares the complete public path of the newly published version with the path of the previously published version. It does not compare slugs alone.
+- The lookup is exact. It joins the normalized pathname and the query string (`request.nextUrl.search`, which includes the leading `?`). `/campaign?ref=sms` matches only that query string.
+- The path is not decoded. A browser always sends encoded characters, so store the encoded form of a path: a rule for `/café` must be stored as `/caf%C3%A9`.
+- Trailing slashes and repeated slashes are normalized the same way the plugin stores paths, so `/articles/hello-world/` matches `/articles/hello-world`.
+- Next.js may already redirect some URLs before `proxy.ts` runs, for example to add or remove a trailing slash.
 
-| Event                                                              | Result                                                                      |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| First publication                                                  | No rule.                                                                    |
-| Draft save                                                         | No rule.                                                                    |
-| Republication, path unchanged                                      | An identical enabled automatic rule is left as is.                          |
-| Republication, path changed                                        | A `301` from the old path to the new one is created or updated and enabled. |
-| Previous published version has no resolvable path in a locale      | That locale is skipped.                                                     |
-| A manual rule already owns the source path                         | The automatic write is skipped and the manual rule stays unchanged.         |
-| Editor edits or manually disables an automatic rule                | Its origin becomes `manual`, and later publications no longer manage it.    |
-| Unpublish or delete                                                | No new rule. Existing rules stay.                                           |
-| Return to an earlier path that would close a loop in enabled rules | The write is rejected and the publication fails.                            |
+A pathname-only rule does not match a request with extra query parameters. If you want generic pathname rules to apply to any query string, add a second lookup in your application after the exact one, and make sure the redirect cannot repeat. Keep the exact match first. The plugin does not provide this fallback.
 
-Route changes do not migrate historical URLs. Add manual rules for older paths if you need them.
+## Configuration and access control
 
-## Configuration
+### Plugin options
 
-You can configure automatic redirects in two places. Use `custom.redirect` by default.
+| Option           | Default                             | Description                                                                               |
+| ---------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| `collections`    | None                                | Central configuration for Collections. Replaces the entity's `custom.redirect`.           |
+| `globals`        | None                                | Central configuration for Globals. Replaces the entity's `custom.redirect`.               |
+| `localePrefixes` | No prefixes                         | One prefix per locale, applied to `path` and `paths`. Must list every locale.             |
+| `overrides`      | Plugin-owned `redirects` collection | Native Payload collection options, plus `fields` to add fields. Required fields are kept. |
 
-### `custom.redirect` on the entity
+### Overrides
 
-Each Collection or Global gets its own `custom.redirect` object. The plugin reads it when Payload builds the config, so the route sits next to the fields it uses.
-
-| Option    | Type                                  | Description                                                                                                     |
-| --------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `path`    | `string`                              | One site-relative template for all locales. Starts with `/`; no query string or fragment.                       |
-| `paths`   | `Record<Locale, string>`              | One template per Payload locale. Requires `localization`. Must cover every locale exactly.                      |
-| `getPath` | `({ doc, locale }) => string \| null` | Synchronous callback for conditional routes. Returns a complete site-relative path, or `null` to skip a locale. |
-| `enabled` | `boolean`                             | Defaults to `true` when a strategy is set. `false` alone keeps manual redirects and stops generation.           |
-
-Use exactly one of `path`, `paths`, or `getPath`. `enabled: false` cannot be combined with a strategy.
-
-Type the option with `RedirectCollectionOptions<"articles">` for a Collection or `RedirectGlobalOptions<"about">` for a Global. Both are generic over the slug, so `doc` in `getPath` has that entity's fields.
-
-**`path`** uses top-level field names in brackets. Each value must be a non-empty string or finite number. The plugin encodes it as one path segment:
-
-```ts
-// src/collections/Articles.ts (custom only)
-custom: {
-  redirect: {
-    path: "/articles/[category]/[slug]",
-  } satisfies RedirectCollectionOptions<"articles">,
-},
-```
-
-A missing or unsafe value skips path resolution for that locale.
-
-**`getPath`** handles conditional routes. Here is a complete collection with it:
-
-```ts
-// src/collections/Articles.ts
-import type { CollectionConfig } from "payload";
-import type { RedirectCollectionOptions } from "@klnap/payload-redirect";
-
-export const Articles: CollectionConfig = {
-  slug: "articles",
-  versions: { drafts: true },
-  admin: { useAsTitle: "title" },
-  fields: [
-    { name: "title", type: "text", required: true },
-    { name: "slug", type: "text", required: true },
-    { name: "category", type: "text", required: true },
-  ],
-  custom: {
-    redirect: {
-      getPath: ({ doc }) => {
-        if (!doc.category || !doc.slug) return null;
-
-        const category = encodeURIComponent(doc.category);
-        const slug = encodeURIComponent(doc.slug);
-
-        return doc.category === "interviews"
-          ? `/interviews/${slug}`
-          : `/articles/${category}/${slug}`;
-      },
-    } satisfies RedirectCollectionOptions<"articles">,
-  },
-};
-```
-
-The callback is synchronous. The plugin does not add locale prefixes to its result, so add them yourself when you need them. Return `null` to skip a locale. An exception thrown by the callback is not converted to a skip.
-
-### Central configuration: `redirects()`
-
-You can also configure entities in the plugin call. This is useful when you cannot edit the Collection or Global, or when the route is a site-wide decision:
+`overrides` passes options to the plugin-owned collection. This example renames it and adds a note field:
 
 ```ts
 redirects({
-  localePrefixes: { en: "", fr: "/fr", de: "/de" },
-  collections: {
-    articles: { path: "/articles/[category]/[slug]" },
-  },
-  globals: {
-    about: { path: "/[slug]" },
-  },
-});
-```
-
-**Precedence.** A central entry replaces that entity's `custom.redirect`. The two are never merged. Central `collections` and `globals` maps are independent, even when their slugs match.
-
-## Localization
-
-The plugin uses Payload's native content localization. The complete setup is in [Complete example](#complete-example): `localization` in `buildConfig`, localized fields in the collection, and a `paths` map in `custom.redirect`.
-
-With those templates, the same article resolves to:
-
-| Locale | Published slug                 | Public path                                |
-| ------ | ------------------------------ | ------------------------------------------ |
-| `en`   | `getting-started-with-payload` | `/articles/getting-started-with-payload`   |
-| `fr`   | `premiers-pas-avec-payload`    | `/fr/actualites/premiers-pas-avec-payload` |
-| `de`   | `erste-schritte-mit-payload`   | `/de/artikel/erste-schritte-mit-payload`   |
-
-Publishing a new French slug `introduction-a-payload` creates only this redirect:
-
-```text
-/fr/actualites/premiers-pas-avec-payload
-→ /fr/actualites/introduction-a-payload (301)
-```
-
-Rules:
-
-- `path` shares one template across locales. `paths` gives one per locale.
-- `localePrefixes` prefixes either template strategy. It must list every Payload locale.
-- `paths` and `localePrefixes` must match `localization.locales` exactly.
-- Without localization, use `path` or `getPath` and omit `localePrefixes`.
-- Generation reads current and historical published documents with fallback disabled. A locale without a slug is skipped. The plugin never borrows another locale's slug.
-- Redirect rules have no locale or domain scope. Localized routes need distinct source paths when they need different destinations.
-- Payload content localization translates article data. Payload `i18n` translates the Admin UI. Plugin labels and validation messages are English.
-
-## Globals
-
-Globals use the same publication, localization, path validation, and storage as Collections. The complete Global setup is in [Complete example](#complete-example). Give the Global `versions: { drafts: true }` and a `custom.redirect` entry, or configure it centrally:
-
-```ts
-redirects({
-  globals: {
-    about: { path: "/[slug]" },
-  },
-});
-```
-
-## Manual redirects
-
-`redirects()` registers the plugin-owned `redirects` collection. Create, edit, enable, or disable manual rules in the Payload Admin. Manual rules need no automatic configuration.
-
-- `from` is a normalized site-relative path. Duplicates are rejected.
-- `to` is a normalized site-relative path that differs from `from`. Absolute URLs are not accepted here.
-- `statusCode` is `301` (default) or `302`.
-- `enabled` defaults to `true`. `origin` is `manual` for rules you create and `auto` for generated ones.
-
-### Campaign links
-
-Share short, readable URLs in SMS campaigns, newsletters, or promotional materials. A manual rule redirects visitors to the landing page with campaign parameters:
-
-| Field        | Value                                                                 |
-| ------------ | --------------------------------------------------------------------- |
-| `from`       | `/summer-2027`                                                        |
-| `to`         | `/summer-2027?utm_source=sms&utm_medium=sms&utm_campaign=summer_2027` |
-| `statusCode` | `302`                                                                 |
-| `enabled`    | `true`                                                                |
-
-Rules for query strings:
-
-- Sources and destinations may contain a query string. Source matching is exact, so `/campaign?ref=sms` is distinct from `/campaign` and from `/campaign?ref=email`.
-- A source and destination may share a pathname when their query strings differ. The lookup in [Serving redirects](#serving-redirects) includes `search`, so the landing request does not match the campaign rule again.
-- The plugin does not forward or merge incoming query parameters. The destination is the stored `to`.
-- Automatic content paths have no query strings. Campaign rules are ordinary manual rules.
-
-The plugin stores these rules only. It does not collect attribution data or integrate with analytics or advertising tools.
-
-Register `redirects()` once. A second registration throws. The collection slug defaults to `redirects`. Change it with `overrides.slug` if that slug is taken.
-
-## Serving redirects
-
-The plugin stores rules and does not send responses. The [complete example](#complete-example) shows `src/proxy.ts`, which looks up the rule and returns the redirect with its stored status.
-
-Stored rules use the plugin's normalization. The lookup in `proxy.ts` applies the same path rules to `request.nextUrl.pathname` and appends `request.nextUrl.search`, so a query-specific rule matches only the same query string:
-
-| Input                    | Stored source                        |
-| ------------------------ | ------------------------------------ |
-| `/articles/old/`         | `/articles/old`                      |
-| `/articles//old`         | `/articles/old`                      |
-| `/a/../b`                | `/b`                                 |
-| `/café`                  | `/café` (distinct from `/caf%C3%A9`) |
-| `/articles/old?ref=mail` | `/articles/old?ref=mail`             |
-
-Normalization trims whitespace, adds a leading slash, collapses repeated slashes, resolves `.` and `..` segments (including percent-encoded forms), and removes a trailing slash except at `/`. It preserves Unicode, percent encoding, and query strings. Fragments are rejected.
-
-Lookup is exact. The request path is not decoded, so a browser request for `/caf%C3%A9` matches only a rule stored as `/caf%C3%A9`, and a rule stored as `/café` never matches a browser request. Store the percent-encoded form for paths that browsers request. Query parameters are not reordered, merged, or forwarded: the destination is the stored `to`.
-
-A pathname-only rule does not match a request that has extra query parameters. Add a second rule with the exact query string if needed. Automatic rules use paths without query strings.
-
-## Overrides and access
-
-`overrides` passes native Payload collection options to the plugin-owned collection. This example renames it, moves it into a group, adds a field, and makes it readable:
-
-```ts
-// payload.config.ts
-redirects({
-  localePrefixes: { en: "", fr: "/fr", de: "/de" },
   overrides: {
     slug: "url-redirects",
     admin: { group: "Settings" },
-    access: {
-      read: () => true,
-    },
     fields: ({ defaultFields }) => [...defaultFields, { name: "editorNote", type: "textarea" }],
   },
 });
 ```
 
-If you rename the collection, change the collection name in `proxy.ts` to match: `collection: "url-redirects"`.
+Then change `collection: "redirects"` to `collection: "url-redirects"` in your application lookup.
 
-The plugin keeps its required fields, their types, built-in validators, `from` uniqueness, and the `enabled` index. It appends its own hooks. Access follows Payload's native defaults unless you set `overrides.access`.
+### Access control
 
-Automatic generation runs trusted server-side Local API operations with `overrideAccess: true`. REST, GraphQL, and user-scoped Local API requests remain subject to your access rules. The example above makes every rule readable by anyone, including through the API. Keep the default unless you want that.
+The redirects collection uses Payload's native access defaults. Anyone who is not logged in cannot read or write rules.
 
-## Reference
+Automatic generation runs inside the publication hook with trusted Local API calls (`overrideAccess: true`). Editors who publish content therefore create redirects without holding redirect permissions. REST, GraphQL, and user-scoped Local API calls follow your access rules.
 
-### Plugin options
+Public read access is opt-in:
 
-| Option           | Default                             | Description                                                                          |
-| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
-| `collections`    | None                                | Central opt-in for Collections. Replaces each entity's `custom.redirect`.            |
-| `globals`        | None                                | Central opt-in for Globals. Replaces each entity's `custom.redirect`.                |
-| `localePrefixes` | No prefixes                         | One prefix per Payload locale, applied to `path` and `paths`.                        |
-| `overrides`      | Plugin-owned `redirects` collection | Native collection options, plus `fields` for extra fields. Required fields are kept. |
+```ts
+redirects({
+  overrides: {
+    access: {
+      read: () => true,
+    },
+  },
+});
+```
 
-### Rule fields
+Public reads return every field the rule allows, including disabled rules and editor notes. Use field-level `access` to hide fields you do not want public.
 
-| Field        | Type                 | Default  | Description                                                    |
-| ------------ | -------------------- | -------- | -------------------------------------------------------------- |
-| `from`       | `string`             | Required | Unique normalized site-relative source path. No fragment.      |
-| `to`         | `string`             | Required | Normalized site-relative destination. Must differ from `from`. |
-| `statusCode` | `"301" \| "302"`     | `"301"`  | Redirect status.                                               |
-| `enabled`    | `boolean`            | `true`   | Disabled rules are not used for lookup or loop checks.         |
-| `origin`     | `"manual" \| "auto"` | `manual` | Whether the plugin manages the rule.                           |
+Your application's lookup in [Application integration](#application-integration) uses trusted server-side access and does not need public read access.
 
-Enabled rules are checked for loops and for chains longer than 1,000 hops at write time. The check does not see loops created by host routing, external redirects, or browser URL equivalence.
+## Compatibility and documentation
 
-### Exports
+| Requirement                  | Support                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js                      | `^22.23.5`, `^24.22.3`, or `>=26.13.1`, as declared in `engines`.                                                                                                            |
+| Payload                      | Declared peer range `>=3.94.1 <4`. The test suite runs against Payload `3.94.1`, the version in the development dependencies. Other 3.x versions are not tested.             |
+| PostgreSQL                   | `@payloadcms/db-postgres` peer `>=3.94.1 <4`. The integration tests run against PostgreSQL 16. Redirect graph writes are serialized with a transaction-scoped advisory lock. |
+| Other database adapters      | Not tested. No concurrency guarantee is claimed for them.                                                                                                                    |
+| Localized publication status | Payload's experimental `localizeStatus`. The plugin follows the per-locale publication status Payload stores; see [Limitations](#limitations).                               |
+| Application framework        | The rule store is framework-independent. The lookup example targets Next.js 16.                                                                                              |
 
-| Export                      | Kind  | Purpose                                                     |
-| --------------------------- | ----- | ----------------------------------------------------------- |
-| `redirects`                 | Value | Returns the Payload plugin.                                 |
-| `RedirectsOptions`          | Type  | Options for `redirects()`.                                  |
-| `RedirectCollectionOptions` | Type  | Options for a Collection, generic over the collection slug. |
-| `RedirectGlobalOptions`     | Type  | Options for a Global, generic over the global slug.         |
-| `RedirectOrigin`            | Type  | `"manual" \| "auto"`.                                       |
-| `RedirectStatusCode`        | Type  | `301 \| 302`.                                               |
+### Limitations
 
-## Compatibility
+- Route changes do not migrate old URLs. Add manual rules for paths you changed before the plugin was installed.
+- Automatic rules follow the published history that Payload keeps. If retention removes the version that held the previous path, no rule is created for that change.
+- Restoring an older version publishes it and creates a rule. The restore is rejected when that rule would close a loop with enabled rules.
+- Changes to the route configuration are not compared with old content paths. Edit manual rules for those.
+- Source paths are unique across all Collections and Globals, and rules have no locale, domain, or host scope.
+- Loop detection covers enabled stored rules. It cannot see loops created by host routing, external redirects, or browser URL equivalence.
+- Request matching, caching, and HTTP responses belong to your application. Lookups run on every matched request, so keep the matcher narrow.
+- Localized publication status depends on Payload's experimental feature. This package's coverage of it is limited to the cases described in its tests.
+- Fragments are not allowed on source paths. Destinations may include them.
 
-| Requirement                  | Support                                                                                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node.js                      | `^22.23.5`, `^24.22.3`, or `>=26.13.1`.                                                                                                                                                                |
-| Payload                      | Tested with Payload `3.94.1` and `3.93.0`: unit and integration tests pass on both. Declared peer range is `>=3.94.1 <4`. Older 3.x versions should work too, but this repository has not tested them. |
-| PostgreSQL                   | Optional `@payloadcms/db-postgres` peer, `>=3.94.1 <4`. Integration tests run against PostgreSQL 16. Rule-graph writes run in a Payload transaction at `READ COMMITTED`.                               |
-| Other database adapters      | Not verified. No equivalent concurrency guarantee is claimed.                                                                                                                                          |
-| Automatic redirects          | Require `versions.drafts` on each configured Collection or Global.                                                                                                                                     |
-| Content localization         | Requires `localization.locales` and `localization.defaultLocale`. Each locale resolves without fallback.                                                                                               |
-| Localized publication status | Opt-in with `experimental.localizeStatus: true` and `versions.drafts.localizeStatus: true`. Payload marks this feature experimental; this package's per-locale coverage is basic.                      |
-| Frontend framework           | The rule store is framework-independent. The serving example targets Next.js 16.                                                                                                                       |
-
-## Limitations
-
-- Route changes do not migrate historical URLs. Add manual rules for older paths.
-- Rules have no locale, domain, or host scope.
-- Cycle detection covers enabled stored rules only.
-- Request matching, caching, and HTTP responses are the application's responsibility. The lookup in `proxy.ts` runs on every matched request.
-
-## Documentation
+### Documentation
 
 - [Failure semantics](./docs/FAILURE_SEMANTICS.md): exact behavior for each configuration and write error.
-- [Releasing](./docs/RELEASING.md): release process for maintainers.
+- [Releasing](https://github.com/klnap/payload-redirect/blob/main/docs/RELEASING.md): release process for maintainers.
+- [Contributing](https://github.com/klnap/payload-redirect/blob/main/CONTRIBUTING.md): development setup and checks.
+- [Security policy](https://github.com/klnap/payload-redirect/blob/main/SECURITY.md): how to report vulnerabilities.
 - [Payload content localization](https://payloadcms.com/docs/configuration/localization)
-- [Payload localized publication status](https://payloadcms.com/docs/configuration/localization#status-localization)
 - [Payload drafts and versions](https://payloadcms.com/docs/versions/drafts)
 - [Payload Local API](https://payloadcms.com/docs/local-api/overview)
 
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Report security issues through [SECURITY.md](./SECURITY.md).
-
 ## License
 
-[MIT](./LICENSE)
+MIT. See [LICENSE](./LICENSE).

@@ -27,10 +27,8 @@ export const createRedirectsFromTransitions = async <TDocument>({
     if (!currentPath) continue;
 
     const to = normalizePathOrUrl(currentPath);
-    const previousPublishedDoc = publishedDocs.find((publishedDoc) => {
-      const path = buildPublishedPath(pathOptions, publishedDoc, locale, localePrefixes);
-      return !path || normalizePathOrUrl(path) !== to;
-    });
+    // publishedDocs is newest first and starts with the publication that just ran.
+    const previousPublishedDoc = publishedDocs[1];
     if (!previousPublishedDoc) continue;
 
     const previousPath = buildPublishedPath(
