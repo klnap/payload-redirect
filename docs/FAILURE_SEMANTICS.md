@@ -59,10 +59,11 @@ Automatic rules use one of `path`, `paths`, or `getPath`, configured centrally o
 Draft saves, first publications, unpublishes, and deletions create no automatic rules. Existing
 redirects remain when a document is unpublished or deleted.
 
-On an unchanged republish, an enabled identical automatic rule is left alone. A missing rule is
-recreated, and a disabled automatic rule is re-enabled, when an earlier published version resolves
-to a different path. The source is the latest earlier published path that differs from the current
-path.
+A publication writes a rule only when it changes the published path. The source is the path of
+the published version immediately before it. Republishing an unchanged path writes nothing: a rule
+an editor deleted stays deleted, and an enabled rule is left as it is. Editing or disabling an
+automatic rule changes its origin to `manual`, so the plugin never re-enables a rule an editor
+turned off.
 
 An automatic write skips a source path owned by a manual rule. Editing an automatic rule changes
 its origin to `manual`, so later publications do not update it. A path-template change does not
