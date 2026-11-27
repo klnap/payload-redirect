@@ -1,5 +1,6 @@
 import type { PayloadRequest } from "payload";
 import { isIdenticalAutoRule } from "#redirect/core/redirects/auto/match-existing-rule";
+import { lockRedirectRuleGraph } from "#redirect/core/redirects/collection/graph-lock";
 import { REDIRECT_CONTEXT_KEYS } from "#redirect/core/redirects/context-keys";
 import { findRedirectByFrom, type RedirectLookupDoc } from "#redirect/core/redirects/queries";
 
@@ -42,6 +43,8 @@ export const ensureAutoRedirect = async ({
     update: (args: Record<string, unknown>) => Promise<unknown>;
   };
 
+  // Lock before the lookup: the ownership decision must read rows committed before this write.
+  await lockRedirectRuleGraph(req);
   const existing = await findRedirectByFrom(req.payload, {
     collectionSlug,
     from: rule.from,

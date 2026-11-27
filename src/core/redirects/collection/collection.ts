@@ -1,5 +1,6 @@
 import type { CollectionConfig, Field } from "payload";
 import { createDuplicateBeforeChange } from "./duplicate-guard.js";
+import { createRedirectGraphLockBeforeOperation } from "./graph-lock.js";
 import { assertRedirectFields, buildRedirectFields, mergeRedirectFields } from "./fields.js";
 import { createRedirectOriginBeforeChange } from "./origin-hook.js";
 import type { RedirectCollectionOverrides } from "./types.js";
@@ -35,6 +36,10 @@ export const createRedirectsCollection = (
     fields,
     hooks: {
       ...existingHooks,
+      beforeOperation: [
+        ...(existingHooks.beforeOperation ?? []),
+        createRedirectGraphLockBeforeOperation(),
+      ],
       beforeChange: [
         ...(existingHooks.beforeChange ?? []),
         createRedirectOriginBeforeChange(),
