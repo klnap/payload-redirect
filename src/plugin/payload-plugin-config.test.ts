@@ -66,11 +66,12 @@ describe("redirects plugin config transform", () => {
   });
 
   it("gives centralized configuration complete precedence over collection-local settings", async () => {
-    const findByID = mock(async () => ({ id: "p1", slug: "new", _status: "published" }));
+    const updatedAt = "2026-01-02T00:00:00.000Z";
+    const findByID = mock(async () => ({ id: "p1", slug: "new", _status: "published", updatedAt }));
     const findVersions = mock(async () => ({
       docs: [
-        { version: { slug: "new", _status: "published" } },
-        { version: { slug: "old", _status: "published" } },
+        { version: { slug: "new", _status: "published", updatedAt } },
+        { version: { slug: "old", _status: "published", updatedAt: "2026-01-01T00:00:00.000Z" } },
       ],
       hasNextPage: false,
     }));
@@ -98,7 +99,7 @@ describe("redirects plugin config transform", () => {
         payload: { config: result, findByID, findVersions, find, create },
       },
       collection: result.collections?.[0],
-      doc: { id: "p1", slug: "new", _status: "published" },
+      doc: { id: "p1", slug: "new", _status: "published", updatedAt },
       data: { _status: "published" },
     } as never);
 

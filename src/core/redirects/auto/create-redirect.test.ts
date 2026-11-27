@@ -1,11 +1,27 @@
 import { describe, expect, it, mock } from "bun:test";
 import { createRedirect } from "./create-redirect";
 
+const THIS_PUBLICATION = "2026-01-02T00:00:00.000Z";
+
+/** The newest published snapshot belongs to this operation: it carries the operation's updatedAt. */
+const stampNewest = (versions: Record<string, unknown>[]) =>
+  versions.map((row, index) =>
+    index === 0
+      ? { ...row, version: { updatedAt: THIS_PUBLICATION, ...(row.version as object) } }
+      : row,
+  );
+
 const makeArgs = ({
   context = {},
   query = { locale: "en" },
   collection = { slug: "pages", versions: { drafts: true }, fields: [] },
-  currentDoc = { id: "page-1", category: "new-category", slug: "new", _status: "published" },
+  currentDoc = {
+    id: "page-1",
+    category: "new-category",
+    slug: "new",
+    _status: "published",
+    updatedAt: THIS_PUBLICATION,
+  },
   locale = "en",
   localization = { locales: ["en"], defaultLocale: "en" },
   versions = [
@@ -41,10 +57,13 @@ const makeArgs = ({
       update,
     },
   };
+  versions = stampNewest(versions);
+  const findVersionsStamped = mock(async () => ({ docs: versions, hasNextPage: false }));
+  req.payload.findVersions = findVersionsStamped;
   return {
     args: { req, collection, doc: currentDoc, data: { _status: "published" } },
     findByID,
-    findVersions,
+    findVersions: findVersionsStamped,
     find,
     create,
     update,
@@ -108,9 +127,9 @@ describe("createRedirect", () => {
     expect(unpublished.findVersions).not.toHaveBeenCalled();
   });
 
-  it("skips repeated current-path snapshots to find the previous distinct path", async () => {
+  it("republishing an unchanged path creates nothing, even after an earlier change", async () => {
     const repeated = makeArgs({
-      currentDoc: { id: "p", slug: "same", _status: "published" },
+      currentDoc: { id: "p", slug: "same", _status: "published", updatedAt: THIS_PUBLICATION },
       versions: [
         { version: { slug: "same", _status: "published" } },
         { version: { slug: "same", _status: "published" } },
@@ -118,15 +137,23 @@ describe("createRedirect", () => {
       ],
     });
     await createForPath({ path: "/[slug]" })(repeated.args as never);
-    expect(repeated.create).toHaveBeenCalledWith(
+    expect(repeated.create).not.toHaveBeenCalled();
+    expect(repeated.update).not.toHaveBeenCalled();
+  });
+
+  it("links the immediately previous publication, not an older distinct path", async () => {
+    const ctx = makeArgs({
+      currentDoc: { id: "p", slug: "third", _status: "published", updatedAt: THIS_PUBLICATION },
+      versions: [
+        { version: { slug: "third", _status: "published" } },
+        { version: { slug: "second", _status: "published" } },
+        { version: { slug: "first", _status: "published" } },
+      ],
+    });
+    await createForPath({ path: "/[slug]" })(ctx.args as never);
+    expect(ctx.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: {
-          from: "/en/older",
-          to: "/en/same",
-          statusCode: "301",
-          enabled: true,
-          origin: "auto",
-        },
+        data: expect.objectContaining({ from: "/en/second", to: "/en/third" }),
       }),
     );
   });
