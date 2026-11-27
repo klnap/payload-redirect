@@ -16,6 +16,8 @@ const authenticatedUser = { id: "payload-redirect-test-user", type: "service" };
 
 const closeHttpPayload = async (payload: Payload) => {
   const httpPayload = await getPayload({ config: payload.config, key: payload.secret });
+  // Same cached instance as the fixture: closing it here would end the pool the test still uses.
+  if (httpPayload === payload) return;
   await httpPayload.db.destroy?.();
   const pool = (
     httpPayload.db as unknown as {

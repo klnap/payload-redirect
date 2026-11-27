@@ -8,6 +8,7 @@ type TestPoolClient = {
 type TestPostgresPool = {
   _clients: TestPoolClient[];
   _idle: Array<{ client: TestPoolClient }>;
+  ending?: boolean;
   end(): Promise<void>;
 };
 
@@ -54,6 +55,8 @@ export async function dropIsolatedDatabase(baseUrl: string, database: string): P
 }
 
 export async function closeTestPostgresPool(pool: TestPostgresPool): Promise<void> {
+  // pg-pool rejects a second end(); the fixture and the test may both close the same pool.
+  if (pool.ending) return;
   const idleClients = new Set(pool._idle.map(({ client }) => client));
 
   for (const client of pool._clients) {
