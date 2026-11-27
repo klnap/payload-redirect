@@ -80,15 +80,6 @@ const localizedCentralConfig = buildConfig({
   ],
 });
 
-redirects({
-  localePrefixes: { en: "", pl: "/pl", de: "/de" },
-  collections: {
-    articles: {
-      getPath: ({ doc, locale }) => `${locale ? `/${locale}` : ""}/${doc.slug}/${doc.title}`,
-    },
-  },
-});
-
 const articleRedirect = {
   paths: {
     en: "/articles/[slug]",
@@ -119,17 +110,21 @@ const localizedCollectionConfig = buildConfig({
   plugins: [redirects({ localePrefixes: { en: "", pl: "/pl", de: "/de" } })],
 });
 
-const customPath = {
-  getPath: ({ doc, locale }) => {
-    if (!doc.category || !doc.slug) return null;
-    const prefix = locale === "pl" ? "/pl" : locale === "de" ? "/de" : "";
-    const category = encodeURIComponent(doc.category);
-    const slug = encodeURIComponent(doc.slug);
-    return doc.category === "interviews"
-      ? `${prefix}/interviews/${slug}`
-      : `${prefix}/articles/${category}/${slug}`;
+const customPathOptions = {
+  collections: {
+    articles: {
+      getPath: ({ doc, locale }) => {
+        if (!doc.category || !doc.slug) return null;
+        const prefix = locale === "pl" ? "/pl" : locale === "de" ? "/de" : "";
+        const category = encodeURIComponent(doc.category);
+        const slug = encodeURIComponent(doc.slug);
+        return doc.category === "interviews"
+          ? `${prefix}/interviews/${slug}`
+          : `${prefix}/articles/${category}/${slug}`;
+      },
+    },
   },
-} satisfies RedirectCollectionOptions<"articles">;
+} satisfies RedirectsOptions;
 
 const collectionOverrides = redirects({
   overrides: {
@@ -147,12 +142,15 @@ const enabledRules = payload.find({
   depth: 0,
 });
 
-const redirectRequest = async (request: Request) => {
-  const canonicalFrom = new URL(request.url).pathname;
+const redirectResponse = async (
+  request: Request,
+  payload: Payload,
+  normalizedFrom: string,
+): Promise<Response | undefined> => {
   const { docs } = await payload.find({
     collection: "redirects",
     where: {
-      and: [{ from: { equals: canonicalFrom } }, { enabled: { equals: true } }],
+      and: [{ from: { equals: normalizedFrom } }, { enabled: { equals: true } }],
     },
     limit: 1,
     pagination: false,
@@ -160,7 +158,8 @@ const redirectRequest = async (request: Request) => {
     overrideAccess: false,
   });
   const rule = docs[0];
-  if (rule) return Response.redirect(new URL(rule.to, request.url), Number(rule.statusCode));
+  if (!rule) return undefined;
+  return Response.redirect(new URL(rule.to, request.url), Number(rule.statusCode));
 };
 
 const invalidLocalePath: RedirectsOptions = {
@@ -218,10 +217,10 @@ void manualOnlyConfig;
 void localizedCentralConfig;
 void localizedArticles;
 void localizedCollectionConfig;
-void customPath;
+void customPathOptions;
 void collectionOverrides;
 void enabledRules;
-void redirectRequest;
+void redirectResponse;
 void invalidLocalePath;
 void invalidUnknownLocalePath;
 void invalidPrefix;
