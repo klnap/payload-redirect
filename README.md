@@ -333,6 +333,26 @@ redirects({
 - `statusCode` is `301` (default) or `302`.
 - `enabled` defaults to `true`. `origin` is `manual` for rules you create and `auto` for generated ones.
 
+### Campaign links
+
+Share short, readable URLs in SMS campaigns, newsletters, or promotional materials. A manual rule redirects visitors to the landing page with campaign parameters:
+
+| Field        | Value                                                                 |
+| ------------ | --------------------------------------------------------------------- |
+| `from`       | `/summer-2027`                                                        |
+| `to`         | `/summer-2027?utm_source=sms&utm_medium=sms&utm_campaign=summer_2027` |
+| `statusCode` | `302`                                                                 |
+| `enabled`    | `true`                                                                |
+
+Rules for query strings:
+
+- Sources and destinations may contain a query string. Source matching is exact, so `/campaign?ref=sms` is distinct from `/campaign` and from `/campaign?ref=email`.
+- A source and destination may share a pathname when their query strings differ. The lookup in [Serving redirects](#serving-redirects) includes `search`, so the landing request does not match the campaign rule again.
+- The plugin does not forward or merge incoming query parameters. The destination is the stored `to`.
+- Automatic content paths have no query strings. Campaign rules are ordinary manual rules.
+
+The plugin stores these rules only. It does not collect attribution data or integrate with analytics or advertising tools.
+
 Register `redirects()` once. A second registration throws. The collection slug defaults to `redirects`. Change it with `overrides.slug` if that slug is taken.
 
 ## Serving redirects
