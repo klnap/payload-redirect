@@ -184,6 +184,9 @@ describe.skipIf(!intDatabaseConfigured)("native redirects access", () => {
       [`/native-access/${native.id}`, "DELETE"],
     ] as const;
 
+    // Create the cached endpoint instance once. Concurrent first calls each build their own instance,
+    // and any instance not closed here keeps a pool open into the database the fixture drops.
+    await getPayload({ config: payload.config, key: payload.secret });
     const responses = await Promise.all(
       requests.map(([path, method, body]) => request(path, method, body)),
     );
