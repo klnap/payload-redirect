@@ -1,4 +1,4 @@
-import type { PayloadRequest } from "payload";
+import type { CollectionBeforeOperationHook, PayloadRequest } from "payload";
 
 /**
  * Serializes writes to the redirect rule graph. The loop and duplicate checks read committed rows,
@@ -42,3 +42,15 @@ export async function lockRedirectRuleGraph(req: PayloadRequest): Promise<void> 
     throw new Error("Redirect rule lock requires READ COMMITTED transactions.");
   }
 }
+
+/**
+ * Takes the graph lock in `beforeOperation`, before Payload reads `originalDoc` and before any ownership
+ * or graph decision. A lock taken in `beforeChange` would let a stale `originalDoc` drive the loop walk.
+ */
+export const createRedirectGraphLockBeforeOperation = (): CollectionBeforeOperationHook => {
+  return async ({ operation, req }) => {
+    if (operation === "create" || operation === "update") {
+      await lockRedirectRuleGraph(req);
+    }
+  };
+};

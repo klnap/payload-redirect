@@ -1,6 +1,5 @@
 import type { CollectionBeforeChangeHook, PayloadRequest } from "payload";
 import { ValidationError } from "payload";
-import { lockRedirectRuleGraph } from "#redirect/core/redirects/collection/graph-lock";
 import {
   assertRedirectStatusCode,
   DEFAULT_REDIRECT_STATUS_CODE,
@@ -213,9 +212,6 @@ export const createDuplicateBeforeChange = (
 ): CollectionBeforeChangeHook => {
   return async (args) => {
     const { data, req, operation, originalDoc } = args;
-    if (operation === "create" || operation === "update") {
-      await lockRedirectRuleGraph(req);
-    }
     const effective = effectiveRuleData(
       operation,
       data as Record<string, unknown> | undefined,

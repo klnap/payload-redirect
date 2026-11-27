@@ -147,23 +147,15 @@ function normalizeRequestPath(pathname: string): string {
   return collapsed.length > 1 && collapsed.endsWith("/") ? collapsed.slice(0, -1) : collapsed;
 }
 
-function decodeSafely(value: string): string {
-  try {
-    return decodeURI(value);
-  } catch {
-    return value;
-  }
-}
-
 export async function proxy(request: NextRequest) {
-  const pathname = normalizeRequestPath(request.nextUrl.pathname);
-  const candidates = [...new Set([pathname, decodeSafely(pathname)])];
+  const { search } = request.nextUrl;
+  const from = normalizeRequestPath(request.nextUrl.pathname) + search;
 
   const payload = await getPayload({ config: payloadConfig });
   const { docs } = await payload.find({
     collection: "redirects",
     where: {
-      and: [{ from: { in: candidates } }, { enabled: { equals: true } }],
+      and: [{ from: { equals: from } }, { enabled: { equals: true } }],
     },
     limit: 1,
     pagination: false,
@@ -174,7 +166,11 @@ export async function proxy(request: NextRequest) {
   const rule = docs[0];
   if (!rule) return NextResponse.next();
 
-  return NextResponse.redirect(new URL(rule.to, request.url), Number(rule.statusCode) as 301 | 302);
+  const target = new URL(rule.to, request.url);
+  // A rule that points at the current path and query would redirect forever. Fragments are not sent to the server.
+  if (target.pathname + target.search === from) return NextResponse.next();
+
+  return NextResponse.redirect(target, Number(rule.statusCode) as 301 | 302);
 }
 
 export const config = {
@@ -343,7 +339,7 @@ Register `redirects()` once. A second registration throws. The collection slug d
 
 The plugin stores rules and does not send responses. The [complete example](#complete-example) shows `src/proxy.ts`, which looks up the rule and returns the redirect with its stored status.
 
-Stored rules use the plugin's normalization, and `URL.pathname` alone does not match it. The lookup in `proxy.ts` applies the same rules to the request path:
+Stored rules use the plugin's normalization. The lookup in `proxy.ts` applies the same path rules to `request.nextUrl.pathname` and appends `request.nextUrl.search`, so a query-specific rule matches only the same query string:
 
 | Input                    | Stored source                        |
 | ------------------------ | ------------------------------------ |
@@ -355,7 +351,9 @@ Stored rules use the plugin's normalization, and `URL.pathname` alone does not m
 
 Normalization trims whitespace, adds a leading slash, collapses repeated slashes, resolves `.` and `..` segments (including percent-encoded forms), and removes a trailing slash except at `/`. It preserves Unicode, percent encoding, and query strings. Fragments are rejected.
 
-The example looks up the pathname only, so rules with a query string never match. If you need them, add the query string to the lookup yourself. Lookup compares the stored value exactly, so case and encoding matter.
+Lookup is exact. The request path is not decoded, so a browser request for `/caf%C3%A9` matches only a rule stored as `/caf%C3%A9`, and a rule stored as `/café` never matches a browser request. Store the percent-encoded form for paths that browsers request. Query parameters are not reordered, merged, or forwarded: the destination is the stored `to`.
+
+A pathname-only rule does not match a request that has extra query parameters. Add a second rule with the exact query string if needed. Automatic rules use paths without query strings.
 
 ## Overrides and access
 
