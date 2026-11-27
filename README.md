@@ -1,10 +1,10 @@
 # `@klnap/payload-redirect`
 
-Generate and manage redirect rules when published document paths change. The host application matches incoming requests and sends HTTP responses.
+Generate and manage redirect rules when published Collection or Global paths change. The host application matches incoming requests and sends HTTP responses.
 
 Automatic rules track complete published paths and use Payload's native content localization.
 
-For a collection named `articles`, configure a route:
+For a Collection named `articles`, configure a route:
 
 ```ts
 import { redirects } from "@klnap/payload-redirect";
@@ -18,7 +18,7 @@ redirects({
 });
 ```
 
-Register the returned plugin in `buildConfig({ plugins: [...] })`; the collection needs `versions.drafts`.
+Register the returned plugin in `buildConfig({ plugins: [...] })`; tracked Collections and Globals need `versions.drafts`.
 
 ```text
 /articles/getting-started-with-payload → /articles/building-your-first-payload-site (301)
@@ -32,7 +32,7 @@ The plugin compares resolved paths from Payload's published versions. Changing a
 
 ## Features
 
-- Generate permanent rules when a published document path changes.
+- Generate permanent rules when a published Collection or Global path changes.
 - Track complete paths built from fields such as `category` and `slug`.
 - Use Payload content localization with translated templates and explicit locale prefixes.
 - Manage manual `301` and `302` rules in Payload Admin.
@@ -56,9 +56,9 @@ npm install @klnap/payload-redirect
 
 ### Automatic redirects
 
-Register each tracked collection in Payload.
+Register each tracked Collection or Global in Payload.
 
-Configure routes centrally with `redirects({ collections })` or beside the collection in `custom.redirect`.
+Configure routes centrally with `redirects({ collections, globals })` or beside the entity in `custom.redirect`.
 
 The plugin compares complete paths from published versions; a changed published path can create or update a permanent `301`.
 
@@ -169,6 +169,37 @@ redirects({
 
 The synchronous callback receives a typed article and `TypedLocale | undefined`; it returns the complete site-relative path or `null`, without a query string or fragment. It routes interviews to `/interviews/[slug]` and other articles to `/articles/[category]/[slug]`. It adds locale prefixes itself: English stays unprefixed, while Polish and German use `/pl` and `/de`. Dynamic segments are encoded. A `null`, non-string, or invalid site-relative result skips that locale's path resolution; callback exceptions are not converted to skips.
 
+### Global routes
+
+Globals use the same publication, localization, path validation, and redirect storage as Collections:
+
+```ts
+import { redirects, type RedirectGlobalOptions } from "@klnap/payload-redirect";
+import type { GlobalConfig } from "payload";
+
+const aboutPath = {
+  getPath: ({ doc, locale }) => {
+    const prefix = locale === "pl" ? "/pl" : "";
+    return `${prefix}/${doc.slug}`;
+  },
+} satisfies RedirectGlobalOptions<"about">;
+
+const About: GlobalConfig = {
+  slug: "about",
+  versions: { drafts: true },
+  fields: [{ name: "slug", type: "text", required: true, localized: true }],
+  custom: { redirect: aboutPath },
+};
+
+redirects({
+  globals: {
+    about: { path: "/[slug]" },
+  },
+});
+```
+
+Central `globals` and `collections` maps are independent, including when their slugs match. A central entry replaces that entity's `custom.redirect`; `{ enabled: false }` disables only its automatic generation.
+
 ### Collection-level configuration
 
 Put route configuration on the collection to keep it beside the schema:
@@ -203,9 +234,7 @@ export const articleRedirectPlugin = redirects({
 
 Register the plugin in the same Payload config as `Articles`: `plugins: [articleRedirectPlugin]`. Set `localization` to `{ locales: ["en", "pl", "de"], defaultLocale: "en" }`; `slug` is localized in the schema. Register `redirects()` only once in the config. This produces the same public paths as the central example. The collection option also accepts `path`, `getPath`, and `{ enabled: false }`.
 
-Central `collections` configuration takes precedence and replaces `custom.redirect`; the two are not merged. Set `{ enabled: false }` centrally or on the collection to disable automatic generation while retaining manual redirects.
-
-Automatic redirect generation supports Collections only. Payload Globals are not supported.
+Central `collections` or `globals` configuration takes precedence and replaces that entity's `custom.redirect`; the two are not merged. Set `{ enabled: false }` centrally or on the entity to disable automatic generation while retaining manual redirects.
 
 ### Collection overrides
 
@@ -221,7 +250,7 @@ redirects({
 });
 ```
 
-The plugin keeps its required fields and types, built-in validators, `from` uniqueness, and `enabled` index. It appends its hooks and merges access overrides with defaults. Custom create/update access must still allow internal automatic writes.
+The plugin keeps its required fields and types, built-in validators, `from` uniqueness, and `enabled` index. It appends its hooks and passes collection access overrides through to Payload. Unspecified access operations use Payload's native defaults.
 
 ### Application integration
 
@@ -243,7 +272,7 @@ async function redirectResponse(
     limit: 1,
     pagination: false,
     depth: 0,
-    overrideAccess: false,
+    overrideAccess: true,
   });
 
   const rule = docs[0];
@@ -252,7 +281,7 @@ async function redirectResponse(
 }
 ```
 
-Replace `"redirects"` if you set `overrides.slug`. Payload Local API defaults to `overrideAccess: true`; setting it to `false` enforces collection read access. Reads are public by default unless you override them. If no rule matches, handle the request normally.
+Replace `"redirects"` if you set `overrides.slug`. Payload Local API defaults to `overrideAccess: true`; this example uses that trusted server-side privilege to resolve a website redirect. It does not make the collection publicly accessible. User-scoped Local API calls should set `overrideAccess: false` and pass the appropriate request or user. Separate frontend applications using REST or GraphQL need authorized credentials unless access is explicitly made public. If no rule matches, handle the request normally.
 
 The host must normalize the request path before lookup; parsing a URL is not equivalent to the plugin's write-time normalization. Pass the normalized source, including any query string your rules use.
 
@@ -299,11 +328,25 @@ For enabled rules, writes validate cycles across normalized stored paths and ref
 
 ### Access control
 
-Default access allows public reads and lets authenticated non-service users create, update, or delete manual rules. Access overrides replace matching defaults. Automatic writes use internal context; custom create/update access must explicitly allow them.
+The redirects collection uses Payload's native access control. By default, collection operations require authentication. Customize permissions through `overrides.access` using standard Payload access functions. Global access policies and hooks remain unchanged.
+
+Automatic redirect generation uses trusted server-side Local API operations with `overrideAccess: true`. External requests remain subject to Payload access control.
+
+To make reads public, configure a native Payload access override:
+
+```ts
+redirects({
+  overrides: {
+    access: {
+      read: () => true,
+    },
+  },
+});
+```
 
 ### Public types
 
-The package exports `redirects`, `RedirectsOptions`, `RedirectCollectionOptions<TSlug>`, `RedirectOrigin` (`"manual" | "auto"`), and `RedirectStatusCode` (`301 | 302`).
+The package exports `redirects`, `RedirectsOptions`, `RedirectCollectionOptions<TSlug>`, `RedirectGlobalOptions<TSlug>`, `RedirectOrigin` (`"manual" | "auto"`), and `RedirectStatusCode` (`301 | 302`).
 
 ## Compatibility
 
@@ -313,11 +356,11 @@ The package exports `redirects`, `RedirectsOptions`, `RedirectCollectionOptions<
 | Payload                      | `>=3.94.1 <4`.                                                                                                                                                                                             |
 | PostgreSQL                   | Optional `@payloadcms/db-postgres` peer, `>=3.94.1 <4`; graph writes require an active Payload transaction at `READ COMMITTED`.                                                                            |
 | Other database adapters      | No equivalent concurrency guarantee is claimed; atomic graph validation is not verified.                                                                                                                   |
-| Automatic redirects          | Require `versions.drafts` on each configured collection.                                                                                                                                                   |
+| Automatic redirects          | Require `versions.drafts` on each configured Collection or Global.                                                                                                                                         |
 | Content localization         | Requires `localization.locales` and `localization.defaultLocale`; each locale resolves without fallback.                                                                                                   |
 | Localized publication status | Opt-in requires `experimental.localizeStatus: true` and `versions.drafts.localizeStatus: true`. Payload marks it experimental; this package has basic, not comprehensive, per-locale publication coverage. |
 | Admin translations           | Payload Admin i18n is separate; plugin labels and validation messages are not translated by the package.                                                                                                   |
-| Global support               | Automatic redirect generation supports Collections only; Payload Globals are not supported.                                                                                                                |
+| Global support               | Uses Global-specific published versions and lifecycle hooks; redirect storage and graph validation are shared with Collections.                                                                            |
 | Frontend framework           | Framework-independent rule storage.                                                                                                                                                                        |
 
 ## Documentation

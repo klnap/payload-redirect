@@ -18,10 +18,10 @@ describe("redirect fields", () => {
     expect(from && "index" in from ? from.index : undefined).not.toBe(true);
   });
 
-  it("plugin fields allow public read (sort/where under fail-closed field access hosts)", () => {
+  it("leaves plugin field access to Payload defaults", () => {
     for (const name of ["from", "to", "statusCode", "enabled", "origin"] as const) {
       const field = fields.find((f) => "name" in f && f.name === name);
-      expect(field && "access" in field ? field.access?.read?.({} as never) : undefined).toBe(true);
+      expect(field && "access" in field ? field.access : undefined).toBeUndefined();
     }
   });
 

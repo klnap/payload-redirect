@@ -17,7 +17,10 @@ const autoDoc = {
 describe("ensureAutoRedirect", () => {
   test("skips when identical auto rule already exists", async () => {
     const payload = {
-      find: async () => ({ docs: [autoDoc], totalDocs: 1 }),
+      find: async (args: { overrideAccess?: boolean }) => {
+        expect(args.overrideAccess).toBe(true);
+        return { docs: [autoDoc], totalDocs: 1 };
+      },
       create: async () => {
         throw new Error("should not create");
       },
@@ -35,10 +38,13 @@ describe("ensureAutoRedirect", () => {
 
   test("skips when from is occupied by another rule", async () => {
     const payload = {
-      find: async () => ({
-        docs: [{ ...autoDoc, id: "9", to: "/z", origin: "manual" }],
-        totalDocs: 1,
-      }),
+      find: async (args: { overrideAccess?: boolean }) => {
+        expect(args.overrideAccess).toBe(true);
+        return {
+          docs: [{ ...autoDoc, id: "9", to: "/z", origin: "manual" }],
+          totalDocs: 1,
+        };
+      },
       create: async () => {
         throw new Error("should not create");
       },
@@ -57,8 +63,12 @@ describe("ensureAutoRedirect", () => {
   test("updates auto rule when target path changes", async () => {
     let updated = false;
     const payload = {
-      find: async () => ({ docs: [{ ...autoDoc, to: "/old-target" }], totalDocs: 1 }),
-      update: async () => {
+      find: async (args: { overrideAccess?: boolean }) => {
+        expect(args.overrideAccess).toBe(true);
+        return { docs: [{ ...autoDoc, to: "/old-target" }], totalDocs: 1 };
+      },
+      update: async (args: { overrideAccess?: boolean }) => {
+        expect(args.overrideAccess).toBe(true);
         updated = true;
       },
       create: async () => {
@@ -77,10 +87,14 @@ describe("ensureAutoRedirect", () => {
   test("creates when no conflict", async () => {
     let created = false;
     const payload = {
-      find: async () => ({ docs: [], totalDocs: 0 }),
-      create: async (args: { data: { origin: string } }) => {
+      find: async (args: { overrideAccess?: boolean }) => {
+        expect(args.overrideAccess).toBe(true);
+        return { docs: [], totalDocs: 0 };
+      },
+      create: async (args: { data: { origin: string }; overrideAccess?: boolean }) => {
         created = true;
         expect(args.data.origin).toBe("auto");
+        expect(args.overrideAccess).toBe(true);
       },
       update: async () => {
         throw new Error("should not update");

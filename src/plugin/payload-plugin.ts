@@ -1,9 +1,20 @@
-import { type CollectionConfig, type Config, definePlugin, type Plugin } from "payload";
+import {
+  type CollectionConfig,
+  type Config,
+  type GlobalConfig,
+  definePlugin,
+  type Plugin,
+} from "payload";
+import { createGlobalRedirect } from "#redirect/core/redirects/auto/create-global-redirect";
 import { createRedirect } from "#redirect/core/redirects/auto/create-redirect";
 import { createRedirectsCollection } from "#redirect/core/redirects/collection/collection";
 import { isValidLocalePrefix } from "#redirect/core/url/published-path";
 import { isValidPathTemplate } from "#redirect/core/url/route-params";
-import type { RedirectCollectionOptions, RedirectsOptions } from "./types.js";
+import type {
+  RedirectCollectionOptions,
+  RedirectGlobalOptions,
+  RedirectsOptions,
+} from "./types.js";
 
 const PLUGIN_SLUG = "@klnap/payload-redirect";
 const DEFAULT_COLLECTION_SLUG = "redirects";
@@ -47,9 +58,10 @@ const assertLocaleMap = (
 
 const validatePathOptions = (
   value: unknown,
+  entityType: "collection" | "global",
   slug: string,
   locales: string[],
-  collection: CollectionConfig,
+  versions: unknown,
 ): void => {
   const options = asRecord(value);
   if (!options)
@@ -76,32 +88,30 @@ const validatePathOptions = (
   }
   if (modes.length !== 1) {
     throw new Error(
-      `payload-redirect: collection "${slug}" must configure exactly one of path, paths, or getPath`,
+      `payload-redirect: ${entityType} "${slug}" must configure exactly one of path, paths, or getPath`,
     );
   }
-  if (
-    !collection.versions ||
-    typeof collection.versions !== "object" ||
-    !collection.versions.drafts
-  ) {
+  if (!asRecord(versions)?.drafts) {
     throw new Error(`payload-redirect: automatic redirects for "${slug}" require versions.drafts`);
   }
 
   if (Object.hasOwn(options, "path")) {
     if (typeof options.path !== "string" || !isValidPathTemplate(options.path)) {
       throw new Error(
-        `payload-redirect: collections.${slug}.path must be a valid site-relative template`,
+        `payload-redirect: ${entityType}s.${slug}.path must be a valid site-relative template`,
       );
     }
   } else if (Object.hasOwn(options, "paths")) {
     if (locales.length === 0) {
-      throw new Error(`payload-redirect: collections.${slug}.paths requires Payload localization`);
+      throw new Error(
+        `payload-redirect: ${entityType}s.${slug}.paths requires Payload localization`,
+      );
     }
-    const paths = assertLocaleMap(options.paths, locales, `collections.${slug}.paths`);
+    const paths = assertLocaleMap(options.paths, locales, `${entityType}s.${slug}.paths`);
     for (const [locale, path] of Object.entries(paths)) {
       if (!isValidPathTemplate(path)) {
         throw new Error(
-          `payload-redirect: collections.${slug}.paths.${locale} must be a valid site-relative template`,
+          `payload-redirect: ${entityType}s.${slug}.paths.${locale} must be a valid site-relative template`,
         );
       }
     }
@@ -110,15 +120,15 @@ const validatePathOptions = (
   }
 };
 
-const selectedCollectionOptions = (
-  collection: CollectionConfig,
-  options: RedirectsOptions,
+const selectedOptions = (
+  entity: { slug: string; custom?: unknown },
+  centralOptions: unknown,
 ): unknown => {
-  const central = asRecord(options.collections);
-  if (central && Object.hasOwn(central, collection.slug)) {
-    return central[collection.slug];
+  const central = asRecord(centralOptions);
+  if (central && Object.hasOwn(central, entity.slug)) {
+    return central[entity.slug];
   }
-  return asRecord(collection.custom)?.redirect;
+  return asRecord(entity.custom)?.redirect;
 };
 
 const validateOptions = (config: Config, options: RedirectsOptions): void => {
@@ -140,10 +150,22 @@ const validateOptions = (config: Config, options: RedirectsOptions): void => {
     }
   }
 
+  for (const slug of Object.keys(asRecord(options.globals) ?? {})) {
+    if (!config.globals?.some((global) => global.slug === slug)) {
+      throw new Error(`payload-redirect: configured global "${slug}" is not registered`);
+    }
+  }
+
   for (const collection of config.collections ?? []) {
-    const selected = selectedCollectionOptions(collection, options);
+    const selected = selectedOptions(collection, options.collections);
     if (selected === undefined) continue;
-    validatePathOptions(selected, collection.slug, locales, collection);
+    validatePathOptions(selected, "collection", collection.slug, locales, collection.versions);
+  }
+
+  for (const global of config.globals ?? []) {
+    const selected = selectedOptions(global, options.globals);
+    if (selected === undefined) continue;
+    validatePathOptions(selected, "global", global.slug, locales, global.versions);
   }
 };
 
@@ -152,7 +174,7 @@ const wireCollectionRedirect = (
   options: RedirectsOptions,
   collectionSlug: string,
 ): CollectionConfig => {
-  const selected = selectedCollectionOptions(collection, options);
+  const selected = selectedOptions(collection, options.collections);
   const record = asRecord(selected);
   if (!record || record.enabled === false) return collection;
 
@@ -167,8 +189,38 @@ const wireCollectionRedirect = (
       afterChange: [
         ...hooks,
         createRedirect({
-          collectionSlug,
+          redirectCollectionSlug: collectionSlug,
           pathOptions: redirectOptions,
+          localePrefixes: options.localePrefixes,
+        }),
+      ],
+    },
+  };
+};
+
+const wireGlobalRedirect = (
+  global: GlobalConfig,
+  options: RedirectsOptions,
+  redirectCollectionSlug: string,
+): GlobalConfig => {
+  const selected = selectedOptions(global, options.globals);
+  const record = asRecord(selected);
+  if (!record || record.enabled === false) return global;
+
+  const afterChange = global.hooks?.afterChange;
+  const hooks = Array.isArray(afterChange) ? afterChange : afterChange ? [afterChange] : [];
+  const pathOptions = selected as RedirectGlobalOptions;
+
+  return {
+    ...global,
+    hooks: {
+      ...global.hooks,
+      afterChange: [
+        ...hooks,
+        createGlobalRedirect({
+          globalSlug: global.slug,
+          redirectCollectionSlug,
+          pathOptions,
           localePrefixes: options.localePrefixes,
         }),
       ],
@@ -202,6 +254,9 @@ const definedRedirectsPlugin = definePlugin<RedirectsOptions>({
         ),
         redirectsCollection,
       ],
+      globals: (config.globals ?? []).map((global) =>
+        wireGlobalRedirect(global, options, collectionSlug),
+      ),
     };
   },
 });

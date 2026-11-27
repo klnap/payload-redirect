@@ -10,7 +10,7 @@ describe("redirect origin hook", () => {
     const result = await hook({
       data,
       operation: "create",
-      req: { context: { [REDIRECT_CONTEXT_KEYS.internal]: true } },
+      req: { context: { [REDIRECT_CONTEXT_KEYS.autoWrite]: true } },
     } as never);
     expect(result?.origin).toBe("auto");
   });
@@ -53,7 +53,7 @@ describe("redirect origin hook", () => {
       data,
       operation: "update",
       originalDoc: { origin: "auto" },
-      req: { context: { [REDIRECT_CONTEXT_KEYS.internal]: true } },
+      req: { context: { [REDIRECT_CONTEXT_KEYS.autoWrite]: true } },
     } as never);
     expect(result?.origin).toBe("auto");
   });

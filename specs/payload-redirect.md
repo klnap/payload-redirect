@@ -4,18 +4,22 @@
 
 - `redirects()` registers the plugin-owned redirects collection.
 - Manual redirect management does not require automatic-generation configuration.
-- Automatic generation is opt-in per collection through central `collections` options or
+- Automatic generation is opt-in per Collection or Global through their central maps or
   `custom.redirect`.
-- Each configured collection uses exactly one of `path`, `paths`, or `getPath`.
-- Central configuration replaces, rather than merges with, collection-level configuration.
+- Each configured entity uses exactly one of `path`, `paths`, or `getPath`.
+- Central configuration replaces, rather than merges with, entity-level configuration.
 - `localePrefixes` applies to template-based paths. `getPath` returns a complete path.
 - Payload localization and published versions provide snapshots; fallback locales are disabled.
-- The public package API contains `redirects()`, `RedirectCollectionOptions`, and `RedirectsOptions`.
+- The public package API contains `redirects()`, `RedirectCollectionOptions`,
+  `RedirectGlobalOptions`, and `RedirectsOptions`.
 - The host application serves redirect rules through its own routing layer.
 
 ## Redirect collection
 
 - Required fields: `from`, `to`, `statusCode`, `enabled`, and `origin`.
+- Collection and field access use Payload's native defaults; collection overrides pass through unchanged.
+- Global configuration preserves native Global access and hook behavior.
+- Trusted automatic redirect operations use privileged Local API access. External requests remain governed by Payload access.
 - `from` is unique and normalized before duplicate checks.
 - `statusCode` accepts `301` or `302`.
 - Automatic writes run inside the Payload request transaction.

@@ -34,11 +34,17 @@ describe("redirects collection", () => {
     expect(collection.trash).toBe(false);
   });
 
-  it("applies plugin access overrides when base omits handlers", () => {
+  it("leaves native Payload access defaults unspecified", () => {
+    expect(createRedirectsCollection({}).access).toBeUndefined();
+  });
+
+  it("passes native access overrides through unchanged", () => {
     const denyAll = () => false;
     const collection = createRedirectsCollection({
-      access: { read: denyAll },
+      access: { read: denyAll, create: denyAll },
     });
     expect(collection.access?.read).toBe(denyAll);
+    expect(collection.access?.create).toBe(denyAll);
+    expect(collection.access?.update).toBeUndefined();
   });
 });

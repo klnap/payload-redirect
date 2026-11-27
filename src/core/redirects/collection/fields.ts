@@ -11,8 +11,6 @@ import {
 } from "#redirect/core/redirects/model/status-code";
 import { normalizeRedirectSourcePath, normalizeRelativeRedirectPath } from "../normalize-path.js";
 
-const publicFieldRead = { read: () => true } as const;
-
 const normalizeSiblingFrom = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   try {
@@ -28,7 +26,6 @@ export const buildRedirectFields = (): Field[] => [
     type: "text",
     required: true,
     unique: true,
-    access: publicFieldRead,
     validate: (value: unknown) => {
       if (typeof value !== "string") return "from is required";
       if (!value.trim()) return "from is required";
@@ -44,7 +41,6 @@ export const buildRedirectFields = (): Field[] => [
     name: "to",
     type: "text",
     required: true,
-    access: publicFieldRead,
     validate: (value: unknown, { siblingData }: { siblingData: Record<string, unknown> }) => {
       try {
         const statusCode = assertRedirectStatusCode(
@@ -69,7 +65,6 @@ export const buildRedirectFields = (): Field[] => [
     label: "Type",
     defaultValue: String(DEFAULT_REDIRECT_STATUS_CODE),
     required: true,
-    access: publicFieldRead,
     options: [
       { label: "Permanent", value: "301" },
       { label: "Temporary", value: "302" },
@@ -89,7 +84,6 @@ export const buildRedirectFields = (): Field[] => [
     type: "checkbox",
     defaultValue: true,
     index: true,
-    access: publicFieldRead,
     admin: { position: "sidebar" },
   },
   {
@@ -97,7 +91,6 @@ export const buildRedirectFields = (): Field[] => [
     type: "select",
     required: true,
     defaultValue: DEFAULT_REDIRECT_ORIGIN,
-    access: publicFieldRead,
     options: [
       { label: "Manual", value: "manual" },
       { label: "Auto", value: "auto" },

@@ -1,6 +1,6 @@
-import type { CollectionSlug, DataFromCollectionSlug, TypedLocale } from "payload";
+import type { TypedLocale } from "payload";
 
-export type RedirectPathOptions<TSlug extends CollectionSlug = CollectionSlug> =
+export type RedirectPathOptions<TDocument = Record<string, unknown>> =
   | {
       enabled?: true;
       path: string;
@@ -19,10 +19,7 @@ export type RedirectPathOptions<TSlug extends CollectionSlug = CollectionSlug> =
       enabled?: true;
       path?: never;
       paths?: never;
-      getPath: (args: {
-        doc: DataFromCollectionSlug<TSlug>;
-        locale: TypedLocale | undefined;
-      }) => string | null;
+      getPath: (args: { doc: TDocument; locale: TypedLocale | undefined }) => string | null;
     }
   | {
       enabled: false;

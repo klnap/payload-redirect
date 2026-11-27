@@ -53,7 +53,11 @@ const makeArgs = ({
 };
 
 const createForPath = (pathOptions: Parameters<typeof createRedirect>[0]["pathOptions"]) =>
-  createRedirect({ collectionSlug: "redirects", pathOptions, localePrefixes: { en: "/en" } });
+  createRedirect({
+    redirectCollectionSlug: "redirects",
+    pathOptions,
+    localePrefixes: { en: "/en" },
+  });
 
 describe("createRedirect", () => {
   it("skips auto writes when context disables them or the collection has no drafts", async () => {
@@ -161,7 +165,7 @@ describe("createRedirect", () => {
       ],
     });
     await createRedirect({
-      collectionSlug: "redirects",
+      redirectCollectionSlug: "redirects",
       pathOptions: { paths: { pl: "/artykuly/[slug]", en: "/articles/[slug]" } },
       localePrefixes: { pl: "", en: "/en" },
     })(localized.args as never);

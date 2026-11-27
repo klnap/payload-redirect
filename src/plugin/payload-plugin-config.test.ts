@@ -34,6 +34,37 @@ describe("redirects plugin config transform", () => {
     expect(project?.hooks?.afterChange?.[0]).toBe(existingHook);
   });
 
+  it("wires Global-local configuration and preserves native Global hooks", () => {
+    const existingHook = () => undefined;
+    const result = config({
+      globals: [
+        {
+          slug: "about-page",
+          versions: { drafts: true },
+          fields: [],
+          hooks: { afterChange: [existingHook] },
+          custom: { redirect: { path: "/[slug]" } },
+        },
+      ],
+    });
+    const global = result.globals?.[0];
+    expect(global?.hooks?.afterChange).toHaveLength(2);
+    expect(global?.hooks?.afterChange?.[0]).toBe(existingHook);
+  });
+
+  it("resolves same-slug Collection and Global configuration in separate namespaces", () => {
+    const result = redirects({
+      collections: { about: { path: "/collection/[slug]" } },
+      globals: { about: { path: "/global/[slug]" } },
+    })({
+      collections: [{ slug: "about", versions: { drafts: true }, fields: [] }],
+      globals: [{ slug: "about", versions: { drafts: true }, fields: [] }],
+    } as unknown as Config) as Config;
+
+    expect(result.collections?.[0]?.hooks?.afterChange).toHaveLength(1);
+    expect(result.globals?.[0]?.hooks?.afterChange).toHaveLength(1);
+  });
+
   it("gives centralized configuration complete precedence over collection-local settings", async () => {
     const findByID = mock(async () => ({ id: "p1", slug: "new", _status: "published" }));
     const findVersions = mock(async () => ({
@@ -116,6 +147,23 @@ describe("redirects plugin config transform", () => {
     expect(result.collections?.[0]?.hooks?.afterChange).toBeUndefined();
   });
 
+  it("lets a central disabled Global replace local automatic configuration", () => {
+    const result = redirects({
+      globals: { "about-page": { enabled: false } },
+    })({
+      globals: [
+        {
+          slug: "about-page",
+          versions: { drafts: true },
+          fields: [],
+          custom: { redirect: { path: "/[slug]" } },
+        },
+      ],
+    } as unknown as Config) as Config;
+
+    expect(result.globals?.[0]?.hooks?.afterChange).toBeUndefined();
+  });
+
   it("supports native collection overrides and rejects slug collisions", () => {
     const result = redirects({
       overrides: { slug: "url-rules", labels: { singular: "URL rule", plural: "URL rules" } },
@@ -149,6 +197,26 @@ describe("redirects plugin config transform", () => {
         collections: [{ slug: "articles", fields: [] }],
       } as unknown as Config),
     ).toThrow(/require versions\.drafts/);
+  });
+
+  it("validates Global registration, strategies, localization, and drafts", () => {
+    expect(() =>
+      redirects({ globals: { missing: { path: "/[slug]" } } })({
+        globals: [],
+      } as unknown as Config),
+    ).toThrow(/global "missing" is not registered/);
+
+    expect(() =>
+      redirects({ globals: { "about-page": { path: "/[slug]" } } })({
+        globals: [{ slug: "about-page", fields: [] }],
+      } as unknown as Config),
+    ).toThrow(/require versions\.drafts/);
+
+    expect(() =>
+      redirects({ globals: { "about-page": { paths: { en: "/[slug]" } } } })({
+        globals: [{ slug: "about-page", versions: { drafts: true }, fields: [] }],
+      } as unknown as Config),
+    ).toThrow(/globals\.about-page\.paths requires Payload localization/);
   });
 
   it("rejects incompatible collection options at startup", () => {
