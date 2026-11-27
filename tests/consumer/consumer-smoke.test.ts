@@ -236,7 +236,7 @@ const freePort = () =>
     });
   });
 
-const run = (command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv = {}) =>
+const run = (command: string, args: string[], cwd: string, env: Record<string, string> = {}) =>
   execFileSync(command, args, {
     cwd,
     env: { ...process.env, ...env },

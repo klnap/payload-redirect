@@ -265,8 +265,8 @@ describe.skipIf(!intDatabaseConfigured)(
 
       expect(admin.errors).toBeUndefined();
       expect(editor.errors).toBeUndefined();
-      expect((admin.data?.Redirects as { totalDocs: number }).totalDocs).toBe(2);
-      expect((editor.data?.Redirects as { totalDocs: number }).totalDocs).toBe(1);
+      expect((admin.data as { Redirects: { totalDocs: number } }).Redirects.totalDocs).toBe(2);
+      expect((editor.data as { Redirects: { totalDocs: number } }).Redirects.totalDocs).toBe(1);
     });
 
     it("anonymous GraphQL reads fail on access, not on query validity", async () => {
@@ -289,9 +289,11 @@ describe.skipIf(!intDatabaseConfigured)(
       );
 
       expect(readerCreate.errors?.[0]?.message).toBe("You are not allowed to perform this action.");
-      expect(readerCreate.data?.createRedirect ?? null).toBeNull();
+      expect(readerCreate.data?.createRedirect).toBeFalsy();
       expect(adminCreate.errors).toBeUndefined();
-      expect((adminCreate.data?.createRedirect as { from: string }).from).toBe("/gql-admin");
+      expect((adminCreate.data as { createRedirect: { from: string } }).createRedirect.from).toBe(
+        "/gql-admin",
+      );
 
       const persisted = await handle.payload.find({
         collection: "redirects",
