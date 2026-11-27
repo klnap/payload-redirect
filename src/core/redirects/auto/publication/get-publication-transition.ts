@@ -35,7 +35,8 @@ export const getPublicationTransition = async (
       locale,
       versionFilter: { localizeStatus, defaultLocale },
     });
-    if (!isThisPublication(rows[0], doc.updatedAt)) continue;
+    // currentDoc is re-read from the database, so hook changes and Local API selects cannot hide updatedAt.
+    if (!isThisPublication(rows[0], currentDoc.updatedAt)) continue;
 
     transitions.push({
       locale,

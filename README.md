@@ -122,7 +122,7 @@ custom: {
 
 Values in `getPath` are not encoded for you. Encode dynamic segments with `encodeURIComponent` when they can contain spaces or reserved characters.
 
-A rule is created only when a publication changes the published path. Draft saves, unchanged republications, and unpublishing create nothing. A first publication creates nothing either, because there is no previous path.
+A rule is created only when a publication changes the published path. Draft saves, unchanged republications, and unpublishing create nothing. Existing rules stay when a document is unpublished or deleted. A first publication creates nothing either, because there is no previous path.
 
 Full-path tracking uses several fields. A category change then creates a redirect even when the slug stays the same:
 
@@ -261,7 +261,7 @@ The plugin stores these rules only. It does not collect attribution data or conn
 
 ## Application integration
 
-The plugin stores rules and never sends a response. Your application looks each request up and redirects. The example below is for Next.js 16 (`src/proxy.ts`); the same logic works in any framework that can call the Payload Local API.
+The plugin stores rules and never sends a response. The example below is illustrative: the plugin does not run it in a Next.js app, and how your application serves redirects is up to you. Your application looks each request up and redirects. The example below is for Next.js 16 (`src/proxy.ts`); the same logic works in any framework that can call the Payload Local API.
 
 ```ts
 // src/proxy.ts

@@ -28,7 +28,9 @@ const makeArgs = ({
   currentDoc?: Record<string, unknown>;
   versions?: Row[] | ((locale: string | undefined) => Row[]);
 } = {}) => {
-  const findByID = mock(async (_args: unknown) => currentDoc);
+  // The transition reads updatedAt from the document re-read from the database.
+  const databaseDoc = { updatedAt: THIS_PUBLICATION, ...currentDoc };
+  const findByID = mock(async (_args: unknown) => databaseDoc);
   const findVersions = mock(async (args: { locale?: string }) => ({
     docs: typeof versions === "function" ? versions(args.locale) : versions,
     hasNextPage: false,
