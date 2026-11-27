@@ -45,7 +45,6 @@ describe.skipIf(!intDatabaseConfigured)(
     const userIds: Partial<Record<Role, string | number>> = {};
 
     const closePool = async (payload: Payload) => {
-      if (payload === handle.payload) return;
       await payload.db.destroy?.();
       const pool = (payload.db as unknown as { pool?: Parameters<typeof closeTestPostgresPool>[0] })
         .pool;
@@ -111,13 +110,13 @@ describe.skipIf(!intDatabaseConfigured)(
           fields: ({ defaultFields }) =>
             defaultFields.map((field) =>
               "name" in field && field.name === "statusCode"
-                ? {
+                ? ({
                     ...field,
                     access: {
                       // Field-level write restriction: only admins may change the status code.
                       update: ({ req }) => req.user?.role === "admin",
                     },
-                  }
+                  } as typeof field)
                 : field,
             ),
         },
@@ -142,6 +141,12 @@ describe.skipIf(!intDatabaseConfigured)(
     }, 120_000);
 
     afterAll(async () => {
+      // handleEndpoints caches its own Payload instance; close its pool before the fixture drops the database.
+      const httpPayload = await getPayload({
+        config: handle.payload.config,
+        key: handle.payload.secret,
+      });
+      if (httpPayload !== handle.payload) await closePool(httpPayload);
       await handle.destroy();
     });
 

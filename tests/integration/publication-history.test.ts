@@ -97,6 +97,24 @@ describe.skipIf(!intDatabaseConfigured)("publication history for Collections and
       expect(await redirectRows(handle.payload)).toEqual([]);
     });
 
+    it("republishing an unchanged path does not recreate a rule an admin deleted", async () => {
+      const created = await handle.payload.create({
+        collection: "articles",
+        data: { slug: "a", title: "A", _status: "published" },
+        overrideAccess: true,
+      });
+      await publishArticle(handle.payload, created.id, { slug: "b" });
+      await handle.payload.delete({
+        collection: "redirects",
+        where: { from: { equals: "/a" } },
+        overrideAccess: true,
+      });
+
+      await publishArticle(handle.payload, created.id, { title: "B again" });
+
+      expect(await redirectRows(handle.payload)).toEqual([]);
+    });
+
     it("unpublish followed by a changed republication links to the last published path", async () => {
       const created = await handle.payload.create({
         collection: "articles",
