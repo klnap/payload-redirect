@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { CollectionConfig } from "payload";
+import { getPayload, handleEndpoints as handleRestEndpoints, type Payload } from "payload";
 import { versionedArticlesCollection } from "../helpers/factories/versioned-document";
 import {
   createRedirectIntPayload,
@@ -29,6 +30,12 @@ const articles = (): CollectionConfig => {
       delete: () => false,
     },
   };
+};
+
+const closeHttpPayload = async (payload: Payload) => {
+  const pool = (payload.db as unknown as { pool?: { end: () => Promise<void> } }).pool;
+  await payload.db.destroy?.();
+  await pool?.end();
 };
 
 describe.skipIf(!intDatabaseConfigured)("trusted automatic publication under native access", () => {
@@ -142,8 +149,7 @@ describe.skipIf(!intDatabaseConfigured)("trusted automatic publication under nat
 
   it("anonymous requests cannot write redirect rules through REST", async () => {
     await handle.resetRedirects();
-    const { handleEndpoints } = await import("payload");
-    const response = await handleEndpoints({
+    const response = await handleRestEndpoints({
       config: handle.payload.config,
       payloadInstanceCacheKey: handle.payload.secret,
       request: new Request("http://localhost/api/redirects", {
@@ -152,6 +158,13 @@ describe.skipIf(!intDatabaseConfigured)("trusted automatic publication under nat
         body: JSON.stringify({ from: "/rest-forged", to: "/target", origin: "auto" }),
       }),
     });
+
+    // The REST call caches its own Payload instance; close its pool so the fixture can drop the database.
+    const httpPayload = await getPayload({
+      config: handle.payload.config,
+      key: handle.payload.secret,
+    });
+    if (httpPayload !== handle.payload) await closeHttpPayload(httpPayload);
 
     expect(response.status).toBeGreaterThanOrEqual(401);
     expect(response.status).toBeLessThan(500);
