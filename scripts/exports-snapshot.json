@@ -3,6 +3,7 @@
     "runtime": ["redirects"],
     "types": [
       "RedirectCollectionOptions",
+      "RedirectGlobalOptions",
       "RedirectOrigin",
       "RedirectsOptions",
       "RedirectStatusCode"

@@ -16,7 +16,7 @@ type EnsureAutoRedirectArgs = {
 };
 
 /**
- * Idempotent create for auto 301 rules. One lookup by unique `from`.
+ * Idempotent create for auto 301 rules. Plugin-owned integrity operations use trusted Local API access.
  */
 export const ensureAutoRedirect = async ({
   req,
@@ -26,7 +26,7 @@ export const ensureAutoRedirect = async ({
 }: EnsureAutoRedirectArgs): Promise<"created" | "skipped" | "updated"> => {
   const internalContext = {
     ...context,
-    [REDIRECT_CONTEXT_KEYS.internal]: true,
+    [REDIRECT_CONTEXT_KEYS.autoWrite]: true,
     [REDIRECT_CONTEXT_KEYS.skipAuto]: true,
   };
 
@@ -46,7 +46,7 @@ export const ensureAutoRedirect = async ({
     collectionSlug,
     from: rule.from,
     req,
-    overrideAccess: false,
+    overrideAccess: true,
     context: internalContext,
   });
 
@@ -65,7 +65,7 @@ export const ensureAutoRedirect = async ({
           enabled: true,
         },
         context: internalContext,
-        overrideAccess: false,
+        overrideAccess: true,
         req,
       });
       return "updated";
@@ -77,7 +77,7 @@ export const ensureAutoRedirect = async ({
     collection: collectionSlug,
     data,
     context: internalContext,
-    overrideAccess: false,
+    overrideAccess: true,
     req,
   });
 

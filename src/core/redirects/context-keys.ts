@@ -1,4 +1,4 @@
 export const REDIRECT_CONTEXT_KEYS = {
-  internal: "payloadRedirectInternal",
+  autoWrite: "payloadRedirectAutoWrite",
   skipAuto: "payloadRedirectSkipAuto",
 } as const;

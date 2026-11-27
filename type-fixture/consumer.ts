@@ -1,12 +1,13 @@
 import {
   type RedirectCollectionOptions,
+  type RedirectGlobalOptions,
   type RedirectOrigin,
   type RedirectStatusCode,
   type RedirectsOptions,
   redirects,
 } from "@klnap/payload-redirect";
 import { postgresAdapter } from "@payloadcms/db-postgres";
-import { buildConfig, type CollectionConfig, type Payload } from "payload";
+import { buildConfig, type CollectionConfig, type GlobalConfig, type Payload } from "payload";
 
 declare module "payload" {
   interface GeneratedTypes {
@@ -24,6 +25,12 @@ declare module "payload" {
         statusCode: "301" | "302";
         enabled: boolean;
         origin: "manual" | "auto";
+      };
+    };
+    globals: {
+      "about-page": {
+        title: string;
+        slug: string;
       };
     };
     locale: "de" | "en" | "pl";
@@ -46,6 +53,26 @@ const manualOnlyConfig = buildConfig({
   plugins: [redirects()],
 });
 
+const aboutPagePath = {
+  getPath: ({ doc, locale }) => {
+    const slug: string = doc.slug;
+    const prefix = locale === "pl" ? "/pl" : locale === "de" ? "/de" : "";
+    return `${prefix}/${slug}`;
+  },
+} satisfies RedirectGlobalOptions<"about-page">;
+
+const aboutPage: GlobalConfig = {
+  slug: "about-page",
+  versions: { drafts: true },
+  fields: [
+    { name: "title", type: "text", localized: true },
+    { name: "slug", type: "text", required: true, localized: true },
+  ],
+  custom: {
+    redirect: aboutPagePath,
+  },
+};
+
 const localizedCentralConfig = buildConfig({
   secret: "fixture-secret",
   db: postgresAdapter({ pool: { connectionString: "postgres://localhost/fixture" } }),
@@ -64,6 +91,7 @@ const localizedCentralConfig = buildConfig({
       ],
     },
   ],
+  globals: [aboutPage],
   plugins: [
     redirects({
       localePrefixes: { en: "", pl: "/pl", de: "/de" },
@@ -76,8 +104,24 @@ const localizedCentralConfig = buildConfig({
           },
         },
       },
+      globals: {
+        "about-page": {
+          path: "/[slug]",
+        },
+      },
     }),
   ],
+});
+
+const globalCustomRedirectConfig = buildConfig({
+  secret: "fixture-secret",
+  db: postgresAdapter({ pool: { connectionString: "postgres://localhost/fixture" } }),
+  localization: {
+    locales: ["en", "pl", "de"],
+    defaultLocale: "en",
+  },
+  globals: [aboutPage],
+  plugins: [redirects({ localePrefixes: { en: "", pl: "/pl", de: "/de" } })],
 });
 
 const articleRedirect = {
@@ -135,6 +179,14 @@ const collectionOverrides = redirects({
   },
 });
 
+const publicRedirectRead = redirects({
+  overrides: {
+    access: {
+      read: () => true,
+    },
+  },
+});
+
 declare const payload: Payload;
 const enabledRules = payload.find({
   collection: "redirects",
@@ -155,7 +207,7 @@ const redirectResponse = async (
     limit: 1,
     pagination: false,
     depth: 0,
-    overrideAccess: false,
+    overrideAccess: true,
   });
   const rule = docs[0];
   if (!rule) return undefined;
@@ -210,6 +262,20 @@ const invalidCollection: RedirectsOptions = {
   },
 };
 
+const invalidGlobal: RedirectsOptions = {
+  globals: {
+    // @ts-expect-error Global slugs must match generated Payload types.
+    misspelledGlobal: { path: "/[slug]" },
+  },
+};
+
+const invalidGlobalDocument: RedirectGlobalOptions<"about-page"> = {
+  getPath: ({ doc }) => {
+    // @ts-expect-error Global document fields come from generated Payload types.
+    return doc.missing;
+  },
+};
+
 const origin: RedirectOrigin = "auto";
 const statusCode: RedirectStatusCode = 301;
 void articles;
@@ -217,8 +283,12 @@ void manualOnlyConfig;
 void localizedCentralConfig;
 void localizedArticles;
 void localizedCollectionConfig;
+void globalCustomRedirectConfig;
+void aboutPage;
+void aboutPagePath;
 void customPathOptions;
 void collectionOverrides;
+void publicRedirectRead;
 void enabledRules;
 void redirectResponse;
 void invalidLocalePath;
@@ -226,5 +296,7 @@ void invalidUnknownLocalePath;
 void invalidPrefix;
 void invalidStrategy;
 void invalidCollection;
+void invalidGlobal;
+void invalidGlobalDocument;
 void origin;
 void statusCode;

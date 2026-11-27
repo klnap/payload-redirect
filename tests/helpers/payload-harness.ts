@@ -1,8 +1,14 @@
 import { randomBytes } from "node:crypto";
-import { redirects } from "@klnap/payload-redirect";
+import { redirects, type RedirectsOptions } from "@klnap/payload-redirect";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
-import { BasePayload, buildConfig, type CollectionConfig, type Payload } from "payload";
+import {
+  BasePayload,
+  buildConfig,
+  type CollectionConfig,
+  type GlobalConfig,
+  type Payload,
+} from "payload";
 import {
   closeTestPostgresPool,
   createIsolatedDatabase,
@@ -38,7 +44,9 @@ export type RedirectIntHandle = {
 
 export type HarnessOptions = {
   collections?: CollectionConfig[];
+  globals?: GlobalConfig[];
   pluginCollection?: CollectionConfig;
+  redirectOverrides?: RedirectsOptions["overrides"];
   localePrefixes?: Record<string, string>;
   localization?: {
     locales: string[];
@@ -109,12 +117,14 @@ export async function createRedirectIntPayload(
     const connectionString = isolated.url;
 
     const redirectsSlug = options.pluginCollection?.slug ?? "redirects";
-    const usesLocalizedStatus = options.collections?.some((c) => {
-      const versions = c.versions;
-      if (!versions || typeof versions !== "object" || !("drafts" in versions)) return false;
-      const drafts = versions.drafts;
-      return typeof drafts === "object" && drafts !== null && drafts.localizeStatus === true;
-    });
+    const usesLocalizedStatus = [...(options.collections ?? []), ...(options.globals ?? [])].some(
+      (c) => {
+        const versions = c.versions;
+        if (!versions || typeof versions !== "object" || !("drafts" in versions)) return false;
+        const drafts = versions.drafts;
+        return typeof drafts === "object" && drafts !== null && drafts.localizeStatus === true;
+      },
+    );
 
     const config = await buildConfig({
       secret: `${PAYLOAD_SECRET}-${randomBytes(8).toString("hex")}`,
@@ -123,7 +133,7 @@ export async function createRedirectIntPayload(
       localization: options.localization,
       ...(usesLocalizedStatus ? { experimental: { localizeStatus: true } } : {}),
       collections: options.collections ?? [],
-      globals: [],
+      globals: options.globals ?? [],
       db: postgresAdapter({
         idType: "uuid",
         pool: { connectionString },
@@ -131,12 +141,15 @@ export async function createRedirectIntPayload(
       }),
       plugins: [
         redirects({
-          overrides: options.pluginCollection
-            ? {
-                slug: options.pluginCollection.slug,
-                labels: options.pluginCollection.labels,
-              }
-            : undefined,
+          overrides: {
+            ...options.redirectOverrides,
+            ...(options.pluginCollection
+              ? {
+                  slug: options.pluginCollection.slug,
+                  labels: options.pluginCollection.labels,
+                }
+              : {}),
+          },
           localePrefixes: options.localePrefixes,
         }),
       ],

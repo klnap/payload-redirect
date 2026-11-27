@@ -1,5 +1,4 @@
 import type { CollectionConfig, Field } from "payload";
-import { defaultRedirectAccess } from "./access.js";
 import { createDuplicateBeforeChange } from "./duplicate-guard.js";
 import { assertRedirectFields, buildRedirectFields, mergeRedirectFields } from "./fields.js";
 import { createRedirectOriginBeforeChange } from "./origin-hook.js";
@@ -19,7 +18,6 @@ export const createRedirectsCollection = (
 
   const slug = overrides.slug ?? DEFAULT_SLUG;
   const existingHooks = overrides.hooks ?? {};
-  const access = { ...defaultRedirectAccess, ...overrides.access };
 
   return {
     ...overrides,
@@ -34,7 +32,6 @@ export const createRedirectsCollection = (
       ...overrides.admin,
     },
     defaultSort: overrides.defaultSort ?? "from",
-    access,
     fields,
     hooks: {
       ...existingHooks,

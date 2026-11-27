@@ -42,6 +42,11 @@ export const getRequestLocales = (
   return status === "published" ? localization : [];
 };
 
+export const getConfiguredLocales = (req: PayloadRequest): Array<string | undefined> => {
+  const locales = listLocales(req);
+  return locales.length > 0 ? locales : [undefined];
+};
+
 export const hasLocalizedDraftStatus = (collection: {
   versions?: { drafts?: unknown } | false;
 }): boolean => {
