@@ -15,11 +15,6 @@ declare module "payload" {
         id: string;
         slug: string;
         title: string;
-      };
-      projects: {
-        id: string;
-        slug: string;
-        title: string;
         category: string;
       };
       redirects: {
@@ -55,34 +50,29 @@ const localizedCentralConfig = buildConfig({
   secret: "fixture-secret",
   db: postgresAdapter({ pool: { connectionString: "postgres://localhost/fixture" } }),
   localization: {
-    locales: ["pl", "en", "de"],
-    defaultLocale: "pl",
+    locales: ["en", "pl", "de"],
+    defaultLocale: "en",
   },
   collections: [
     {
       slug: "articles",
       versions: { drafts: true },
       fields: [
-        { name: "title", type: "text", required: true },
+        { name: "title", type: "text", required: true, localized: true },
         { name: "slug", type: "text", required: true, localized: true },
+        { name: "category", type: "text", required: true },
       ],
-    },
-    {
-      slug: "projects",
-      versions: { drafts: true },
-      fields: [{ name: "slug", type: "text", required: true, localized: true }],
     },
   ],
   plugins: [
     redirects({
-      localePrefixes: { pl: "", en: "/en", de: "/de" },
+      localePrefixes: { en: "", pl: "/pl", de: "/de" },
       collections: {
-        articles: { path: "/[slug]" },
-        projects: {
+        articles: {
           paths: {
-            pl: "/realizacje/[slug]",
-            en: "/work/[slug]",
-            de: "/projekte/[slug]",
+            en: "/articles/[slug]",
+            pl: "/artykuly/[slug]",
+            de: "/artikel/[slug]",
           },
         },
       },
@@ -99,25 +89,47 @@ redirects({
   },
 });
 
-const projectRedirect = {
+const articleRedirect = {
   paths: {
-    pl: "/realizacje/[slug]",
-    en: "/work/[slug]",
-    de: "/projekte/[slug]",
+    en: "/articles/[slug]",
+    pl: "/artykuly/[slug]",
+    de: "/artikel/[slug]",
   },
-} satisfies RedirectCollectionOptions<"projects">;
+} satisfies RedirectCollectionOptions<"articles">;
 
-const projects: CollectionConfig = {
-  slug: "projects",
+const localizedArticles: CollectionConfig = {
+  slug: "articles",
   versions: { drafts: true },
-  custom: { redirect: projectRedirect },
-  fields: [{ name: "slug", type: "text", required: true, localized: true }],
+  custom: { redirect: articleRedirect },
+  fields: [
+    { name: "title", type: "text", required: true, localized: true },
+    { name: "slug", type: "text", required: true, localized: true },
+    { name: "category", type: "text", required: true },
+  ],
 };
 
+const localizedCollectionConfig = buildConfig({
+  secret: "fixture-secret",
+  db: postgresAdapter({ pool: { connectionString: "postgres://localhost/fixture" } }),
+  localization: {
+    locales: ["en", "pl", "de"],
+    defaultLocale: "en",
+  },
+  collections: [localizedArticles],
+  plugins: [redirects({ localePrefixes: { en: "", pl: "/pl", de: "/de" } })],
+});
+
 const customPath = {
-  getPath: ({ doc, locale }) =>
-    doc.slug && doc.category ? `${locale ? `/${locale}` : ""}/${doc.category}/${doc.slug}` : null,
-} satisfies RedirectCollectionOptions<"projects">;
+  getPath: ({ doc, locale }) => {
+    if (!doc.category || !doc.slug) return null;
+    const prefix = locale === "pl" ? "/pl" : locale === "de" ? "/de" : "";
+    const category = encodeURIComponent(doc.category);
+    const slug = encodeURIComponent(doc.slug);
+    return doc.category === "interviews"
+      ? `${prefix}/interviews/${slug}`
+      : `${prefix}/articles/${category}/${slug}`;
+  },
+} satisfies RedirectCollectionOptions<"articles">;
 
 const collectionOverrides = redirects({
   overrides: {
@@ -134,6 +146,22 @@ const enabledRules = payload.find({
   where: { enabled: { equals: true } },
   depth: 0,
 });
+
+const redirectRequest = async (request: Request) => {
+  const canonicalFrom = new URL(request.url).pathname;
+  const { docs } = await payload.find({
+    collection: "redirects",
+    where: {
+      and: [{ from: { equals: canonicalFrom } }, { enabled: { equals: true } }],
+    },
+    limit: 1,
+    pagination: false,
+    depth: 0,
+    overrideAccess: false,
+  });
+  const rule = docs[0];
+  if (rule) return Response.redirect(new URL(rule.to, request.url), Number(rule.statusCode));
+};
 
 const invalidLocalePath: RedirectsOptions = {
   collections: {
@@ -188,10 +216,12 @@ const statusCode: RedirectStatusCode = 301;
 void articles;
 void manualOnlyConfig;
 void localizedCentralConfig;
-void projects;
+void localizedArticles;
+void localizedCollectionConfig;
 void customPath;
 void collectionOverrides;
 void enabledRules;
+void redirectRequest;
 void invalidLocalePath;
 void invalidUnknownLocalePath;
 void invalidPrefix;
