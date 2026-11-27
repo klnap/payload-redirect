@@ -62,7 +62,7 @@ Configure routes centrally with `redirects({ collections })` or beside the colle
 
 The plugin compares complete paths from published versions; a changed published path can create or update a permanent `301`.
 
-First publication and draft saves create no rules; a changed published path can create or update a permanent `301`. On republication, an identical enabled automatic rule is left unchanged. If the selected earlier published version resolves to a different path, a missing rule is recreated and an existing automatic rule is updated and enabled. If that version has no resolvable path, the locale is skipped.
+First publication and draft saves create no rules. On republication, an identical enabled automatic rule is left unchanged. If the selected earlier published version resolves to a different path, a missing rule is recreated and an existing automatic rule is updated and enabled. If that version has no resolvable path, the locale is skipped.
 
 A manual rule at the source path is preserved. Editing or manually disabling an automatic rule changes its origin to manual, so later publications do not manage it.
 
@@ -135,13 +135,13 @@ Publishing a new Polish slug `wprowadzenie-do-payload` creates only this redirec
 
 English and German paths stay unchanged. `path` shares one template across locales; `paths` supplies one per locale. `localePrefixes` prefixes either template strategy and must include every Payload locale. The plugin never infers prefixes or applies `localePrefixes` to `getPath`.
 
-`paths` requires Payload localization. Each `paths` and `localePrefixes` map must match `localization.locales` exactly. Without localization, use `path` and omit `localePrefixes`.
+`paths` requires Payload localization. Each `paths` and `localePrefixes` map must match `localization.locales` exactly. Without localization, use `path` or `getPath` and omit `localePrefixes`.
 
 The plugin reads current and historical published documents with fallback disabled. If an article has no slug in a locale, that locale's redirect is skipped rather than borrowing another locale's slug.
 
 Payload content localization translates article data; Payload `i18n` translates the Admin interface. Plugin labels and validation messages are English.
 
-Redirect rules have no locale or domain scope. Their `from` path is globally unique, so translated routes need distinct prefixes when they must redirect to different destinations.
+Redirect rules have no locale or domain scope. Localized routes must use distinct source paths when they need different redirect destinations.
 
 ### Custom path resolution
 
@@ -254,7 +254,7 @@ async function redirectResponse(
 
 Replace `"redirects"` if you set `overrides.slug`. Payload Local API defaults to `overrideAccess: true`; setting it to `false` enforces collection read access. Reads are public by default unless you override them. If no rule matches, handle the request normally.
 
-The host must normalize the request path before lookup; parsing a URL is not equivalent to the plugin's write-time normalization. Pass the normalized source, including any query string your rules use:
+The host must normalize the request path before lookup; parsing a URL is not equivalent to the plugin's write-time normalization. Pass the normalized source, including any query string your rules use.
 
 Rule writes trim surrounding whitespace, add a leading slash, collapse repeated slashes, resolve literal and percent-encoded dot segments, and remove a trailing slash except at `/`. They preserve Unicode, percent encoding, and query strings as supplied; source fragments are rejected. Lookups compare the normalized stored source value, not browser or application URL equivalence. Match case, encoding, and any query string exactly. URL parsing separates pathname and query and may percent-encode Unicode; `URL.pathname` alone is not a source normalizer.
 
