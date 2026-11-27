@@ -14,11 +14,9 @@ const VERSION_PAGE_SIZE = 50;
 export const getGlobalPublicationTransition = async ({
   req,
   globalSlug,
-  updatedAt,
 }: {
   req: PayloadRequest;
   globalSlug: string;
-  updatedAt: unknown;
 }): Promise<PublicationTransition[]> => {
   if (
     isDraftSave(req) ||
@@ -73,7 +71,7 @@ export const getGlobalPublicationTransition = async ({
       page += 1;
     }
     // Only a locale whose newest published version is this operation's takes part; see getPublicationTransition.
-    if (!isThisPublication(rows[0], updatedAt)) continue;
+    if (!isThisPublication(rows[0], currentDoc.updatedAt)) continue;
 
     transitions.push({
       locale,

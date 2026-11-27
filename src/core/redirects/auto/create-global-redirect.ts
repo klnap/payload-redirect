@@ -24,11 +24,7 @@ export const createGlobalRedirect =
       return args.doc;
     }
 
-    const transitions = await getGlobalPublicationTransition({
-      req: args.req,
-      globalSlug,
-      updatedAt: args.doc.updatedAt,
-    });
+    const transitions = await getGlobalPublicationTransition({ req: args.req, globalSlug });
     await createRedirectsFromTransitions({
       req: args.req,
       redirectCollectionSlug,
