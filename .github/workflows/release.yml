@@ -262,22 +262,10 @@ jobs:
           echo "$GITHUB_WORKSPACE/node_modules/.bin" >> "$GITHUB_PATH"
           test "$(./node_modules/.bin/npm --version)" = "12.2.3"
 
-      # npm can take several minutes to serve a new version and its provenance attestations; the checks below
-      # fail on a 404 before that.
+      # Bounded: the script enforces a ten-minute deadline that includes each npm and HTTP request.
+      # A failure here never republishes; re-run the failed verify-release jobs instead.
       - name: Wait for npm to serve the published version
-        run: |
-          spec="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
-          for _ in $(seq 1 60); do
-            if npm view "$spec" version >/dev/null 2>&1; then
-              url="$(npm view "$spec" dist.attestations.url 2>/dev/null)"
-              if [ -n "$url" ] && curl -fsS -o /dev/null "$url"; then
-                exit 0
-              fi
-            fi
-            sleep 10
-          done
-          echo "npm did not serve ${spec} and its attestations within 10 minutes." >&2
-          exit 1
+        run: node scripts/await-registry.mjs
 
       - name: Verify npm publication, provenance, Git tag, release, and changelog
         env:
@@ -316,8 +304,9 @@ jobs:
             ? JSON.parse(execFileSync("gh", ["api", `repos/${process.env.EXPECTED_REPOSITORY}/git/tags/${ref.object.sha}`], { encoding: "utf8" })).object
             : ref.object;
           if (object.sha !== process.env.RELEASE_SOURCE_SHA) throw new Error(`${tag} does not point to the published source commit.`);
-          const release = JSON.parse(execFileSync("gh", ["release", "view", tag, "--json", "tagName,isDraft,isPrerelease"], { encoding: "utf8" }));
-          if (release.tagName !== tag || release.isDraft || release.isPrerelease) throw new Error(`GitHub Release ${tag} is missing or incomplete.`);
+          const release = JSON.parse(execFileSync("gh", ["api", `repos/${process.env.EXPECTED_REPOSITORY}/releases/tags/${tag}`], { encoding: "utf8" }));
+          if (release.tag_name !== tag || release.draft || release.prerelease) throw new Error(`GitHub Release ${tag} is missing, a draft, or a prerelease.`);
+          if (release.immutable !== true) throw new Error(`GitHub Release ${tag} is mutable. Enable immutable releases for this repository and check that the release was created after enabling.`);
           console.log(`Verified npm ${spec}, latest dist-tag, provenance, ${tag}, GitHub Release, and changelog.`);
           NODE
 
