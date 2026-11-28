@@ -18,15 +18,33 @@ const docker = (argv, inherit = true, env = {}) =>
     encoding: "utf8",
   });
 const containerName = `${config.containerName}-${randomBytes(8).toString("hex")}`;
-
 let started = false;
+const removeContainer = () => {
+  if (!started) return;
+  started = false;
+  docker(["rm", "-f", containerName], false);
+};
+// While the test child runs, the event loop is blocked, so a signal runs this handler after the child exits.
+// Ctrl+C also reaches the child and ends it first, so removal still happens on the normal path.
+for (const [signal, code] of [
+  ["SIGINT", 130],
+  ["SIGTERM", 143],
+]) {
+  process.once(signal, () => {
+    removeContainer();
+    process.exit(code);
+  });
+}
+
 try {
   if (!process.env[config.envVar]?.trim()) {
     if (docker(["info"], false).status !== 0) {
-      console.log(
-        `[${config.containerName}] database unreachable: ${config.envVar} is not set and no container runtime is available. Database integration tests are skipped.`,
+      console.error(
+        `[${config.containerName}] cannot run integration tests: ${config.envVar} is not set and the Docker daemon is not reachable.\n` +
+          "Start Docker Desktop (or the Docker engine), or set " +
+          `${config.envVar} to a disposable PostgreSQL URL. Unit tests run without Docker: bun run test.`,
       );
-      process.exit(0);
+      process.exit(1);
     }
     const password = randomBytes(24).toString("hex");
     const run = docker(
@@ -35,7 +53,8 @@ try {
         "--name",
         containerName,
         "--label",
-        "stolbek.ephemeral-postgres=true",
+        `${config.label}=true`,
+        "--rm",
         "-e",
         "POSTGRES_PASSWORD",
         "-p",
@@ -51,7 +70,11 @@ try {
     else {
       let ready = false;
       for (let attempt = 0; attempt < 45; attempt++) {
-        if (docker(["exec", containerName, "pg_isready", "-U", "postgres"], false).status === 0) {
+        // TCP, not the unix socket: the image's init phase runs a temporary server on the socket only.
+        if (
+          docker(["exec", containerName, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"], false)
+            .status === 0
+        ) {
           ready = true;
           break;
         }
@@ -73,6 +96,6 @@ try {
 } finally {
   if (started) {
     if (config.cleanupDelayMs) await Bun.sleep(config.cleanupDelayMs);
-    docker(["rm", "-f", containerName], false);
+    removeContainer();
   }
 }

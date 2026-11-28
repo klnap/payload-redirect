@@ -75,6 +75,7 @@
     "@types/pg": "^8.23.1",
     "dependency-cruiser": "^18.8.0",
     "graphql": "16.15.0",
+    "next": "16.4.6",
     "npm": "12.2.3",
     "publint": "0.3.25",
     "payload": "3.94.1",
