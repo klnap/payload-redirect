@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { EventEmitter } from "node:events";
 import { assertSafePostgresHost, closeTestPostgresPool } from "../helpers/test-postgres";
 
 describe("integration database host guard", () => {
@@ -25,13 +26,18 @@ describe("integration database host guard", () => {
     const checkedOut = {
       release: (destroy?: boolean) => calls.push(`checked-out-release:${destroy}`),
     };
-    const pool = {
+    // Shaped like pg-pool: 'remove' fires for each client once its socket has closed.
+    const pool = Object.assign(new EventEmitter(), {
       _clients: [idle, checkedOut],
       _idle: [{ client: idle }],
+      get totalCount() {
+        return this._clients.length;
+      },
       end: async () => {
         calls.push("end");
+        for (const _ of [idle, checkedOut]) queueMicrotask(() => pool.emit("remove"));
       },
-    } as unknown as Parameters<typeof closeTestPostgresPool>[0];
+    });
 
     await closeTestPostgresPool(pool);
 
