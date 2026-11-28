@@ -17,6 +17,23 @@ const docker = (argv, inherit = true, env = {}) =>
     stdio: inherit ? "inherit" : "pipe",
     encoding: "utf8",
   });
+// docker-proxy accepts TCP before the server behind it answers, so probe the exact URL the tests use.
+async function waitForHostConnection(url, name) {
+  const { default: pg } = await import("pg");
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const client = new pg.Client({ connectionString: url });
+    try {
+      await client.connect();
+      await client.query("select 1");
+      await client.end();
+      return;
+    } catch {
+      client.end().catch(() => {});
+      await Bun.sleep(500);
+    }
+  }
+  throw new Error(`${name} did not accept connections on its host port`);
+}
 const containerName = `${config.containerName}-${randomBytes(8).toString("hex")}`;
 let started = false;
 const removeContainer = () => {
@@ -85,7 +102,9 @@ try {
       const port = docker(["port", containerName, "5432/tcp"], false);
       const hostPort = port.stdout.trim().match(/^127\.0\.0\.1:(\d+)$/m)?.[1];
       if (port.status !== 0 || !hostPort) throw new Error(`cannot resolve ${containerName} port`);
-      process.env[config.envVar] = `postgres://postgres:${password}@127.0.0.1:${hostPort}/postgres`;
+      const url = `postgres://postgres:${password}@127.0.0.1:${hostPort}/postgres`;
+      await waitForHostConnection(url, containerName);
+      process.env[config.envVar] = url;
     }
   }
 

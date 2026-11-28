@@ -9,7 +9,10 @@ type TestPostgresPool = {
   _clients: TestPoolClient[];
   _idle: Array<{ client: TestPoolClient }>;
   ending?: boolean;
+  readonly totalCount: number;
   end(): Promise<void>;
+  on(event: "remove", listener: () => void): unknown;
+  off(event: "remove", listener: () => void): unknown;
 };
 
 async function withAdmin(baseUrl: string, query: string): Promise<void> {
@@ -60,12 +63,31 @@ export async function dropIsolatedDatabase(baseUrl: string, database: string): P
 
 export async function closeTestPostgresPool(pool: TestPostgresPool): Promise<void> {
   // pg-pool rejects a second end(); the fixture and the test may both close the same pool.
+  // shortcut: a pool that is already ending returns without waiting for socket closure; callers close it once, upgrade if one ends it first.
   if (pool.ending) return;
   const idleClients = new Set(pool._idle.map(({ client }) => client));
+  const removed = waitForRemovals(pool, pool.totalCount);
 
   for (const client of pool._clients) {
     if (!idleClients.has(client)) client.release(true);
   }
 
   await pool.end();
+  // pool.end() resolves once pg-pool has dropped its clients, not when their sockets close. A following
+  // DROP DATABASE ... WITH (FORCE) could otherwise run while a backend is still alive.
+  await removed;
+}
+
+function waitForRemovals(pool: TestPostgresPool, count: number): Promise<void> {
+  if (count === 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let remaining = count;
+    const onRemove = () => {
+      if (--remaining === 0) {
+        pool.off("remove", onRemove);
+        resolve();
+      }
+    };
+    pool.on("remove", onRemove);
+  });
 }
