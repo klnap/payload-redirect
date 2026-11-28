@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.8
+
+### Patch Changes
+
+- 98e13f5: Release workflow only: wait for npm to serve provenance attestations before verifying a release. No runtime change.
+
 ## 0.4.7
 
 ### Patch Changes
