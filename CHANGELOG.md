@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+### Patch Changes
+
+- 2c92fa0: Document that the README Next.js proxy example is verified against PostgreSQL by the integration suite. No runtime change.
+
 ## 0.4.3
 
 ### Patch Changes
