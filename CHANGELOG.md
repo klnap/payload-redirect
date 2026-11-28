@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.10
+
+### Patch Changes
+
+- e5f6b68: Release workflow and CI only: install the Bun version from packageManager instead of the latest Bun. No runtime change.
+
 ## 0.4.9
 
 ### Patch Changes
