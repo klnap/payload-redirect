@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+### Patch Changes
+
+- 507492f: Test infrastructure only: integration tests fail instead of skipping when PostgreSQL is unavailable, and the test database harness removes its container on success, failure, and interruption. No runtime change.
+
 ## 0.4.2
 
 ### Patch Changes
