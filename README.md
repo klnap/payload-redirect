@@ -261,7 +261,7 @@ The plugin stores these rules only. It does not collect attribution data or conn
 
 ## Application integration
 
-The plugin stores rules and never sends a response. The example below is illustrative: the plugin does not run it in a Next.js app, and how your application serves redirects is up to you. Your application looks each request up and redirects. The example below is for Next.js 16 (`src/proxy.ts`); the same logic works in any framework that can call the Payload Local API.
+The plugin stores rules and never sends a response. The example below is verified by `tests/integration/nextjs-proxy-example.test.ts`: the test runs this proxy function against a PostgreSQL fixture with real Next.js request and response objects. It does not start a Next.js server or check your `matcher`. How your application serves redirects is up to you. Your application looks each request up and redirects. The example below is for Next.js 16 (`src/proxy.ts`); the same logic works in any framework that can call the Payload Local API.
 
 ```ts
 // src/proxy.ts
