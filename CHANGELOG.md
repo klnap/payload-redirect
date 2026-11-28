@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.7
+
+### Patch Changes
+
+- b1d8565: Release workflow only: verify each published release after publication, matching npm-package-template. No runtime change.
+
 ## 0.4.6
 
 ### Patch Changes
