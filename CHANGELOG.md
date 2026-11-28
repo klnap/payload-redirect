@@ -11,6 +11,7 @@
 ### Patch Changes
 
 - 07cd76b: Test infrastructure only: the integration pool teardown waits for pg-pool to close each client socket before the test database is dropped. No runtime change.
+- 339cbe0: Test infrastructure only: the PostgreSQL test harness verifies the exact host connection URL with a real database handshake before tests start, instead of checking only readiness inside the container. This change shipped in 0.4.5 but was omitted from its Changeset. No runtime change.
 
 ## 0.4.4
 
