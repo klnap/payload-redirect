@@ -44,8 +44,13 @@ const realView = async (spec, field, timeoutMs) => {
       npm_config_fetch_retries: "0",
     },
   });
-  return stdout.trim() ? JSON.parse(stdout) : undefined;
+  return stdout.trim() ? unwrapNpmValue(JSON.parse(stdout)) : undefined;
 };
+
+// npm 12 wraps a single `npm view` result in an array; npm 11 returns the value itself. Exported for tests.
+export function unwrapNpmValue(value) {
+  return Array.isArray(value) && value.length === 1 ? value[0] : value;
+}
 
 // `deps` lets tests replace the npm and HTTP calls; production uses the defaults.
 export async function probeVersion(spec, timeoutMs, deps = { view: realView }) {

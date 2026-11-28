@@ -6,6 +6,7 @@ export class PermanentRegistryError extends Error {}
 export class NotReadyError extends Error {}
 
 export function classifyNpmFailure(error: unknown, field: string, spec: string): Error;
+export function unwrapNpmValue(value: unknown): unknown;
 
 export interface RegistryDeps {
   view: (spec: string, field: string, timeoutMs: number) => Promise<unknown>;
