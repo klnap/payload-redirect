@@ -1,6 +1,6 @@
 {
   "name": "@klnap/payload-redirect",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Redirect management for Payload CMS.",
   "homepage": "https://github.com/klnap/payload-redirect#readme",
   "bugs": {
