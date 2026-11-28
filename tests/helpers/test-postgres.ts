@@ -15,6 +15,10 @@ type TestPostgresPool = {
 async function withAdmin(baseUrl: string, query: string): Promise<void> {
   const url = new URL(baseUrl);
   assertSafePostgresHost(url.hostname);
+  // node-postgres lets these query parameters override the URL host, which would bypass the hostname check.
+  if (url.searchParams.has("host") || url.searchParams.has("hostaddr")) {
+    throw new Error("Test database URLs must not use host or hostaddr query parameters");
+  }
   url.pathname = "/postgres";
   const client = new Client({ connectionString: url.toString() });
   await client.connect();
