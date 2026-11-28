@@ -160,6 +160,9 @@ jobs:
     permissions:
       contents: write # Changesets creates the published version tag.
       id-token: write # npm exchanges this job's OIDC identity for short-lived publishing access.
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+      published-packages: ${{ steps.publish.outputs.published-packages }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -223,3 +226,107 @@ jobs:
             exit 1
           fi
           gh release create "$TAG" --verify-tag --generate-notes
+
+  verify-release:
+    needs: [pack, publish]
+    if: needs.publish.outputs.published == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Use the pinned npm CLI
+        run: |
+          echo "$GITHUB_WORKSPACE/node_modules/.bin" >> "$GITHUB_PATH"
+          test "$(./node_modules/.bin/npm --version)" = "12.2.3"
+
+      # npm can take a few minutes to serve a new version; the checks below fail on a 404 before that.
+      - name: Wait for npm to serve the published version
+        run: |
+          spec="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
+          for _ in $(seq 1 18); do
+            if npm view "$spec" version >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "npm did not serve ${spec} within 3 minutes." >&2
+          exit 1
+
+      - name: Verify npm publication, provenance, Git tag, release, and changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          RELEASE_SOURCE_SHA: ${{ needs.pack.outputs.source-sha }}
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published-packages }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { mkdtempSync, readFileSync } from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          const published = JSON.parse(process.env.PUBLISHED_PACKAGES);
+          const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+          if (published.length !== 1 || published[0].name !== pkg.name || published[0].version !== pkg.version) {
+            throw new Error("Published package does not match package.json.");
+          }
+          const spec = `${pkg.name}@${pkg.version}`;
+          const integrity = JSON.parse(execFileSync("npm", ["view", spec, "dist.integrity", "--json"], { encoding: "utf8" }));
+          if (!integrity) throw new Error(`npm has no integrity for ${spec}.`);
+          const attestations = JSON.parse(execFileSync("npm", ["view", spec, "dist.attestations", "--json"], { encoding: "utf8" }));
+          if (!attestations) throw new Error(`npm has no provenance attestations for ${spec}.`);
+          // npm 12 wraps `view <pkg> dist-tags` output in an array; npm 11 returns the object.
+          const distTagsOutput = JSON.parse(execFileSync("npm", ["view", pkg.name, "dist-tags", "--json"], { encoding: "utf8" }));
+          const distTags = Array.isArray(distTagsOutput) ? distTagsOutput[0] : distTagsOutput;
+          if (distTags.latest !== pkg.version) throw new Error(`The latest dist-tag points to ${distTags.latest}, not ${pkg.version}.`);
+          const verifyDir = mkdtempSync(path.join(os.tmpdir(), "npm-release-verify-"));
+          execFileSync("npm", ["install", "--prefix", verifyDir, "--ignore-scripts", "--no-audit", "--no-fund", spec], { stdio: "inherit" });
+          execFileSync("npm", ["audit", "signatures", "--prefix", verifyDir], { stdio: "inherit" });
+          const changelog = readFileSync("CHANGELOG.md", "utf8");
+          if (!changelog.includes(`## ${pkg.version}`)) throw new Error(`CHANGELOG.md has no entry for ${pkg.version}.`);
+          const tag = `v${pkg.version}`;
+          const ref = JSON.parse(execFileSync("gh", ["api", `repos/${process.env.EXPECTED_REPOSITORY}/git/ref/tags/${tag}`], { encoding: "utf8" }));
+          const object = ref.object.type === "tag"
+            ? JSON.parse(execFileSync("gh", ["api", `repos/${process.env.EXPECTED_REPOSITORY}/git/tags/${ref.object.sha}`], { encoding: "utf8" })).object
+            : ref.object;
+          if (object.sha !== process.env.RELEASE_SOURCE_SHA) throw new Error(`${tag} does not point to the published source commit.`);
+          const release = JSON.parse(execFileSync("gh", ["release", "view", tag, "--json", "tagName,isDraft,isPrerelease"], { encoding: "utf8" }));
+          if (release.tagName !== tag || release.isDraft || release.isPrerelease) throw new Error(`GitHub Release ${tag} is missing or incomplete.`);
+          console.log(`Verified npm ${spec}, latest dist-tag, provenance, ${tag}, GitHub Release, and changelog.`);
+          NODE
+
+  outcome:
+    needs: [prepare, version, pack, publish, verify-release]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Verify release outcome
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          RELEASE_MODE: ${{ needs.prepare.outputs.mode }}
+          VERSION_RESULT: ${{ needs.version.result }}
+          PACK_RESULT: ${{ needs.pack.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          PUBLISHED: ${{ needs.publish.outputs.published }}
+          VERIFY_RESULT: ${{ needs.verify-release.result }}
+        run: bun run scripts/release-outcome.ts
