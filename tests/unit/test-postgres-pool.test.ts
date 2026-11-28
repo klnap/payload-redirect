@@ -14,12 +14,12 @@ class EarlyEndingPool extends EventEmitter {
   }
   end(): Promise<void> {
     this.ending = true;
-    this._clients.forEach((_, index) =>
+    this._clients.forEach((_, index) => {
       setTimeout(() => {
         this.closed.push(index);
         this.emit("remove");
-      }, 20),
-    );
+      }, 20);
+    });
     return Promise.resolve();
   }
 }
