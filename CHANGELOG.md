@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.11
+
+### Patch Changes
+
+- 3ae98e7: Release workflow only: enforce a ten-minute registry deadline and verify GitHub Release immutability.
+
 ## 0.4.10
 
 ### Patch Changes
